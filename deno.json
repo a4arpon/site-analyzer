@@ -1,0 +1,21 @@
+{
+  "$schema": "https://raw.githubusercontent.com/denoland/deno/refs/heads/main/cli/schemas/config-file.v1.json",
+  "tasks": {
+    "dev": "deno run --watch --allow-net main.ts",
+    "build:compile": "deno compile --target x86_64-unknown-linux-gnu ./src/app.ts"
+  },
+  "fmt": {
+    "lineWidth": 80,
+    "include": [
+      "./src/*"
+    ],
+    "semiColons": false,
+    "useTabs": false
+  },
+  "version": "0.0.1",
+  "nodeModulesDir": "auto",
+  "preferPackageJson": true,
+  "imports": {
+    "#src/": "./src/"
+  }
+}
