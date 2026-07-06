@@ -1,0 +1,221 @@
+{
+  "$schema": "./schema.json",
+  "metadata": {
+    "name": "Core Audit Rules",
+    "slug": "core-rules",
+    "description": "Basic SEO and agent-readiness checks for any website.",
+    "version": "1.0.0",
+    "category": "seo",
+    "tags": ["seo", "basics", "agent-ready"],
+    "createdBy": {
+      "name": "Xia",
+      "email": "a4arpon@email.com",
+      "url": "https://github.com/a4arpon"
+    },
+    "updatedAt": "2026-07-07",
+    "license": "MIT"
+  },
+  "rules": {
+    "SEO-01": {
+      "id": "SEO-01",
+      "name": "Single H1 Per Page",
+      "description": "Each page must have exactly one H1 tag. Multiple H1s confuse AI agents and search engines about the primary topic. Zero H1s make the page untitled for agents.",
+      "category": "seo",
+      "priority": "P0",
+      "check": {
+        "type": "selector",
+        "selector": "h1",
+        "scope": "page",
+        "threshold": {
+          "min": 1,
+          "max": 1
+        }
+      },
+      "fix": {
+        "instruction": "Ensure every page has exactly one <h1> tag describing the primary topic. If multiple H1s exist, downgrade extras to <h2>. If zero exist, add one at the top of <body>.",
+        "codeSnippet": "<h1>Primary Topic of This Page</h1>\n<!-- Only one h1 per page. Use h2-h6 for subsections. -->",
+        "effort": "easy",
+        "automated": true
+      },
+      "impact": {
+        "seo": "critical",
+        "agent": "blocking",
+        "performance": "none",
+        "conversion": "none"
+      },
+      "examples": [
+        {
+          "case": "Page with one h1",
+          "input": "<h1>About Us</h1><h2>Team</h2>",
+          "expected": "pass"
+        },
+        {
+          "case": "Page with two h1s",
+          "input": "<h1>About Us</h1><h1>Our Team</h1>",
+          "expected": "fail"
+        }
+      ]
+    },
+    "SEO-02": {
+      "id": "SEO-02",
+      "name": "Title Tag Presence and Length",
+      "description": "Every page must have a <title> tag between 30 and 60 characters. Missing titles make pages untitled in search results and agent context. Too long gets truncated.",
+      "category": "seo",
+      "priority": "P0",
+      "check": {
+        "type": "selector",
+        "selector": "title",
+        "scope": "page",
+        "threshold": {
+          "min": 30,
+          "max": 60
+        }
+      },
+      "fix": {
+        "instruction": "Add a <title> tag inside <head> with 30-60 characters. Include primary keyword and brand name.",
+        "codeSnippet": "<head>\n  <title>Primary Keyword - Brand Name</title>\n</head>",
+        "effort": "trivial",
+        "automated": true
+      },
+      "impact": {
+        "seo": "critical",
+        "agent": "blocking",
+        "performance": "none",
+        "conversion": "indirect-loss"
+      },
+      "examples": [
+        {
+          "case": "Valid title length",
+          "input": "<title>Backend Engineer Portfolio - Xia</title>",
+          "expected": "pass"
+        },
+        {
+          "case": "Title too short",
+          "input": "<title>Home</title>",
+          "expected": "fail"
+        }
+      ]
+    },
+    "AG-01": {
+      "id": "AG-01",
+      "name": "HTML Lang Attribute",
+      "description": "The <html> tag must have a lang attribute. AI agents use this to determine language for summarization, translation, and content processing. Missing lang causes agent misinterpretation.",
+      "category": "agent",
+      "priority": "P1",
+      "check": {
+        "type": "selector",
+        "selector": "html",
+        "attribute": "lang",
+        "scope": "page",
+        "threshold": {
+          "min": 2
+        }
+      },
+      "fix": {
+        "instruction": "Add lang attribute to the <html> tag using ISO 639-1 language code.",
+        "codeSnippet": "<html lang=\"en\">\n<!-- or lang=\"bn\" for Bangla, lang=\"zh\" for Chinese -->",
+        "effort": "trivial",
+        "automated": true
+      },
+      "impact": {
+        "seo": "moderate",
+        "agent": "degraded",
+        "performance": "none",
+        "conversion": "none"
+      },
+      "examples": [
+        {
+          "case": "Valid lang attribute",
+          "input": "<html lang=\"en\">",
+          "expected": "pass"
+        },
+        {
+          "case": "Missing lang",
+          "input": "<html>",
+          "expected": "fail"
+        }
+      ]
+    },
+    "SEO-03": {
+      "id": "SEO-03",
+      "name": "Meta Description Presence",
+      "description": "Each page should have a meta description between 120 and 160 characters. While not a ranking factor, it controls search snippet text and agent summary context.",
+      "category": "seo",
+      "priority": "P1",
+      "check": {
+        "type": "selector",
+        "selector": "meta[name='description']",
+        "attribute": "content",
+        "scope": "page",
+        "threshold": {
+          "min": 120,
+          "max": 160
+        }
+      },
+      "fix": {
+        "instruction": "Add a meta description summarizing the page content in 120-160 characters.",
+        "codeSnippet": "<meta name=\"description\" content=\"This page covers backend engineering with NestJS, PostgreSQL, and scalable API design for high-traffic systems.\">",
+        "effort": "easy",
+        "automated": true
+      },
+      "impact": {
+        "seo": "high",
+        "agent": "degraded",
+        "performance": "none",
+        "conversion": "friction"
+      },
+      "examples": [
+        {
+          "case": "Valid description",
+          "input": "<meta name=\"description\" content=\"A comprehensive guide to building scalable backends with NestJS and PostgreSQL for modern applications.\">",
+          "expected": "pass"
+        },
+        {
+          "case": "Description too short",
+          "input": "<meta name=\"description\" content=\"Backend guide\">",
+          "expected": "fail"
+        }
+      ]
+    },
+    "SEO-04": {
+      "id": "SEO-04",
+      "name": "Canonical Link Tag",
+      "description": "Each page should have a canonical URL to prevent duplicate content issues. AI agents use canonicals to identify the authoritative version of content.",
+      "category": "seo",
+      "priority": "P1",
+      "check": {
+        "type": "selector",
+        "selector": "link[rel='canonical']",
+        "attribute": "href",
+        "scope": "page",
+        "threshold": {
+          "min": 10
+        }
+      },
+      "fix": {
+        "instruction": "Add a canonical link tag pointing to the preferred version of this URL.",
+        "codeSnippet": "<link rel=\"canonical\" href=\"https://example.com/this-page/\" />",
+        "effort": "trivial",
+        "automated": true
+      },
+      "impact": {
+        "seo": "high",
+        "agent": "degraded",
+        "performance": "none",
+        "conversion": "none"
+      },
+      "examples": [
+        {
+          "case": "Canonical present",
+          "input": "<link rel=\"canonical\" href=\"https://site.com/about\">",
+          "expected": "pass"
+        },
+        {
+          "case": "Missing canonical",
+          "input": "<head><title>About</title></head>",
+          "expected": "fail"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,346 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://site-agent.dev/schemas/rule-spec.json",
+  "title": "SiteAgent Rule Specification",
+  "description": "Schema for defining audit rules consumed by the SiteAgent CLI engine.",
+  "type": "object",
+  "required": ["metadata", "rules"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Reference to the JSON Schema for validation and IDE autocomplete."
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Descriptive metadata about this rule pack.",
+      "required": ["name", "version", "createdBy", "updatedAt"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Human-readable name of the rule pack.",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "slug": {
+          "type": "string",
+          "description": "URL-safe identifier for CLI filtering (--only slug).",
+          "pattern": "^[a-z0-9-]+$"
+        },
+        "description": {
+          "type": "string",
+          "description": "Short summary of what this rule pack audits.",
+          "maxLength": 500
+        },
+        "version": {
+          "type": "string",
+          "description": "Semantic version of this rule pack.",
+          "pattern": "^\\d+\\.\\d+\\.\\d+(-[a-zA-Z0-9.-]+)?$"
+        },
+        "category": {
+          "type": "string",
+          "description": "Primary audit category.",
+          "enum": ["agent", "seo", "performance", "structure", "security", "accessibility", "e-commerce", "custom"]
+        },
+        "tags": {
+          "type": "array",
+          "description": "Searchable tags for discovery and CLI filtering.",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]+$",
+            "maxLength": 32
+          }
+        },
+        "createdBy": {
+          "type": "object",
+          "description": "Author or maintainer of this rule pack.",
+          "required": ["name"],
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Display name of the author.",
+              "minLength": 1
+            },
+            "email": {
+              "type": "string",
+              "format": "email",
+              "description": "Contact email for support or contributions."
+            },
+            "url": {
+              "type": "string",
+              "format": "uri",
+              "description": "Author website, GitHub profile, or organization URL."
+            },
+            "organization": {
+              "type": "string",
+              "description": "Company or group maintaining this pack."
+            }
+          }
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date",
+          "description": "Last modification date. ISO 8601 (YYYY-MM-DD)."
+        },
+        "license": {
+          "type": "string",
+          "description": "SPDX license identifier or custom license name."
+        },
+        "homepage": {
+          "type": "string",
+          "format": "uri",
+          "description": "Documentation or source repository URL for this rule pack."
+        },
+        "requires": {
+          "type": "object",
+          "description": "Minimum engine requirements to run this rule pack.",
+          "properties": {
+            "engine": {
+              "type": "string",
+              "description": "Minimum SiteAgent engine version.",
+              "pattern": "^\\d+\\.\\d+\\.\\d+$"
+            },
+            "features": {
+              "type": "array",
+              "description": "Required engine capabilities. Engine skips pack if unavailable.",
+              "items": {
+                "type": "string",
+                "enum": ["dom-parser", "js-execution", "screenshot", "mcp-bridge"]
+              }
+            }
+          }
+        }
+      }
+    },
+    "rules": {
+      "type": "object",
+      "description": "Map of rule definitions keyed by unique rule ID.",
+      "patternProperties": {
+        "^[A-Z]{2,4}-\\d{2,3}$": {
+          "type": "object",
+          "description": "Individual audit rule definition.",
+          "required": ["id", "name", "category", "priority", "check"],
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "Unique rule identifier. Format: CATEGORY PREFIX + NUMBER.",
+              "pattern": "^[A-Z]{2,4}-\\d{2,3}$"
+            },
+            "name": {
+              "type": "string",
+              "description": "Human-readable rule name.",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "description": {
+              "type": "string",
+              "description": "What this rule checks and why it matters.",
+              "maxLength": 500
+            },
+            "category": {
+              "type": "string",
+              "description": "Audit category for grouping and filtering.",
+              "enum": ["agent", "seo", "performance", "structure", "security", "accessibility", "e-commerce", "custom"]
+            },
+            "priority": {
+              "type": "string",
+              "description": "Severity level. Determines report ordering and CI exit behavior.",
+              "enum": ["P0", "P1", "P2", "P3"]
+            },
+            "check": {
+              "type": "object",
+              "description": "Evaluation logic for this rule.",
+              "required": ["type"],
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "description": "Execution strategy for this rule.",
+                  "enum": ["selector", "header", "regex", "fetch", "script", "composite", "custom"]
+                },
+                "target": {
+                  "type": "string",
+                  "description": "What to evaluate against. Interpretation depends on check.type."
+                },
+                "selector": {
+                  "type": "string",
+                  "description": "CSS selector for DOM-based checks. Required when type is 'selector'."
+                },
+                "attribute": {
+                  "type": "string",
+                  "description": "HTML attribute to extract from matched elements. Omit to check innerText."
+                },
+                "headerName": {
+                  "type": "string",
+                  "description": "HTTP header name to evaluate. Required when type is 'header'."
+                },
+                "url": {
+                  "type": "string",
+                  "description": "Relative or absolute URL to fetch. Required when type is 'fetch'. Supports {{baseUrl}} interpolation."
+                },
+                "pattern": {
+                  "type": "string",
+                  "description": "Regex pattern for 'regex' type checks."
+                },
+                "script": {
+                  "type": "string",
+                  "description": "Deno-compatible inline script for 'script' type. Must export a default function returning Finding[] or null.",
+                  "maxLength": 5000
+                },
+                "rules": {
+                  "type": "array",
+                  "description": "Sub-rule IDs to compose for 'composite' type.",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[A-Z]{2,4}-\\d{2,3}$"
+                  }
+                },
+                "compositeLogic": {
+                  "type": "string",
+                  "description": "Boolean logic for composite rules.",
+                  "enum": ["all", "any", "none"],
+                  "default": "all"
+                },
+                "threshold": {
+                  "type": "object",
+                  "description": "Numeric or string thresholds for pass/fail determination.",
+                  "properties": {
+                    "min": {
+                      "type": "number",
+                      "description": "Minimum value (inclusive) to pass."
+                    },
+                    "max": {
+                      "type": "number",
+                      "description": "Maximum value (inclusive) to pass."
+                    },
+                    "equals": {
+                      "oneOf": [
+                        { "type": "string" },
+                        { "type": "number" },
+                        { "type": "boolean" }
+                      ],
+                      "description": "Exact match required to pass."
+                    },
+                    "contains": {
+                      "type": "string",
+                      "description": "Substring that must exist in extracted value."
+                    },
+                    "statusCode": {
+                      "type": "integer",
+                      "description": "Expected HTTP status for fetch checks.",
+                      "minimum": 100,
+                      "maximum": 599
+                    },
+                    "ratio": {
+                      "type": "number",
+                      "description": "Ratio threshold (0.0 - 1.0) for proportion-based checks.",
+                      "minimum": 0,
+                      "maximum": 1
+                    }
+                  }
+                },
+                "scope": {
+                  "type": "string",
+                  "description": "Which pages to evaluate.",
+                  "enum": ["page", "site", "root"],
+                  "default": "page"
+                }
+              }
+            },
+            "fix": {
+              "type": "object",
+              "description": "Remediation guidance for AI agents and developers.",
+              "required": ["instruction"],
+              "properties": {
+                "instruction": {
+                  "type": "string",
+                  "description": "Plain-language fix instruction. Shown in reports and fed to LLMs.",
+                  "maxLength": 2000
+                },
+                "codeSnippet": {
+                  "type": "string",
+                  "description": "Optional copy-pasteable code or markup example.",
+                  "maxLength": 5000
+                },
+                "reference": {
+                  "type": "string",
+                  "format": "uri",
+                  "description": "Link to documentation or specification explaining this fix."
+                },
+                "effort": {
+                  "type": "string",
+                  "description": "Estimated implementation complexity.",
+                  "enum": ["trivial", "easy", "moderate", "hard", "complex"],
+                  "default": "moderate"
+                },
+                "automated": {
+                  "type": "boolean",
+                  "description": "Whether this fix can be auto-applied by an agent or script.",
+                  "default": false
+                }
+              }
+            },
+            "impact": {
+              "type": "object",
+              "description": "Business and technical impact metadata.",
+              "properties": {
+                "seo": {
+                  "type": "string",
+                  "description": "Effect on search engine visibility.",
+                  "enum": ["critical", "high", "moderate", "low", "none"]
+                },
+                "agent": {
+                  "type": "string",
+                  "description": "Effect on AI agent comprehension and action.",
+                  "enum": ["blocking", "degraded", "minor", "none"]
+                },
+                "performance": {
+                  "type": "string",
+                  "description": "Effect on page speed and resource usage.",
+                  "enum": ["blocking", "slow", "minor", "none"]
+                },
+                "conversion": {
+                  "type": "string",
+                  "description": "Estimated effect on user conversion or revenue.",
+                  "enum": ["direct-loss", "indirect-loss", "friction", "none"]
+                }
+              }
+            },
+            "examples": {
+              "type": "array",
+              "description": "Example pass and fail cases for documentation.",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "case": {
+                    "type": "string",
+                    "description": "Description of the scenario."
+                  },
+                  "input": {
+                    "type": "string",
+                    "description": "Sample HTML, URL, or header value."
+                  },
+                  "expected": {
+                    "type": "string",
+                    "enum": ["pass", "fail"],
+                    "description": "Whether this case should trigger a finding."
+                  }
+                }
+              }
+            },
+            "disabled": {
+              "type": "boolean",
+              "description": "If true, engine skips this rule during audit.",
+              "default": false
+            },
+            "notes": {
+              "type": "string",
+              "description": "Internal notes or changelog for rule maintainers.",
+              "maxLength": 1000
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

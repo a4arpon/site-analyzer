@@ -1,4 +1,5 @@
-import { randomUUID } from "node:crypto"
 import { AppConfig } from "#src/config.ts"
+import { log } from "node:console"
+import { appUpdater } from "#src/updater.ts"
 
-console.log("hello world", AppConfig.appName, randomUUID())
+log("hello world", AppConfig.appName, appUpdater())
