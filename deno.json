@@ -5,7 +5,7 @@
   "jsrDepsInNodeModules": true,
   "preferPackageJson": true,
   "tasks": {
-    "dev": "deno run --watch ./src/app.ts",
+    "dev": "deno run --allow-net --allow-read ./src/app.ts",
     "build:compile": " deno compile --bundle --minify --target x86_64-unknown-linux-gnu --output ./dist/web-analyzer ./src/app.ts"
   },
   "imports": {
@@ -23,15 +23,14 @@
     "semiColons": false,
     "useTabs": false
   },
+  "unstable": ["tsgo"],
   "compilerOptions": {
     "moduleResolution": "bundler",
     "module": "esnext",
     "strict": true,
     "noImplicitAny": true,
     "skipLibCheck": true,
-    "types": ["node"],
     "lib": [
-      "node",
       "deno.ns",
       "esnext"
     ]

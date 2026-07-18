@@ -12,7 +12,7 @@
       "email": "a4arpon@email.com",
       "url": "https://github.com/a4arpon"
     },
-    "updatedAt": "2026-07-07",
+    "updatedAt": "2026-07-19",
     "license": "MIT"
   },
   "rules": {
@@ -216,6 +216,208 @@
           "expected": "fail"
         }
       ]
+    },
+    "OG-01": {
+      "id": "OG-01",
+      "name": "Open Graph Title",
+      "description": "og:title gives AI agents and social scrapers the canonical page title for cards and summaries. Missing it falls back to <title>, which may be truncated or wrong in agent context.",
+      "category": "agent",
+      "priority": "P1",
+      "check": {
+        "type": "selector",
+        "selector": "meta[property='og:title']",
+        "attribute": "content",
+        "scope": "page",
+        "threshold": {
+          "min": 5
+        }
+      },
+      "fix": {
+        "instruction": "Add an og:title meta tag with the page's share title (40-60 chars).",
+        "codeSnippet": "<meta property=\"og:title\" content=\"Product Name - Brand\">",
+        "effort": "trivial",
+        "automated": true
+      },
+      "impact": {
+        "seo": "moderate",
+        "agent": "degraded",
+        "performance": "none",
+        "conversion": "friction"
+      }
+    },
+    "OG-02": {
+      "id": "OG-02",
+      "name": "Open Graph Description",
+      "description": "og:description supplies the summary text agents and social cards use. Without it, agents infer from page body, often producing weak or off-topic summaries.",
+      "category": "agent",
+      "priority": "P1",
+      "check": {
+        "type": "selector",
+        "selector": "meta[property='og:description']",
+        "attribute": "content",
+        "scope": "page",
+        "threshold": {
+          "min": 20
+        }
+      },
+      "fix": {
+        "instruction": "Add an og:description meta tag (120-200 chars) summarizing the page.",
+        "codeSnippet": "<meta property=\"og:description\" content=\"Shop the durable, eco-friendly Widget with free shipping and a 2-year warranty.\">",
+        "effort": "easy",
+        "automated": true
+      },
+      "impact": {
+        "seo": "moderate",
+        "agent": "degraded",
+        "performance": "none",
+        "conversion": "friction"
+      }
+    },
+    "OG-03": {
+      "id": "OG-03",
+      "name": "Open Graph Image",
+      "description": "og:image is the visual agents and social platforms pull for cards. Missing it means no visual signal in agent summaries and zero share-preview CTR.",
+      "category": "agent",
+      "priority": "P1",
+      "check": {
+        "type": "selector",
+        "selector": "meta[property='og:image']",
+        "attribute": "content",
+        "scope": "page",
+        "threshold": {
+          "min": 8
+        }
+      },
+      "fix": {
+        "instruction": "Add an og:image meta tag pointing to a 1200x630 (or larger) share image URL.",
+        "codeSnippet": "<meta property=\"og:image\" content=\"https://example.com/img/product-1200x630.jpg\">",
+        "effort": "trivial",
+        "automated": true
+      },
+      "impact": {
+        "seo": "high",
+        "agent": "degraded",
+        "performance": "none",
+        "conversion": "indirect-loss"
+      }
+    },
+    "OG-04": {
+      "id": "OG-04",
+      "name": "Open Graph Type",
+      "description": "og:type tells agents the semantic nature of the page (product, article, website). Agents use it to route the page into the correct understanding/extraction path.",
+      "category": "agent",
+      "priority": "P2",
+      "check": {
+        "type": "selector",
+        "selector": "meta[property='og:type']",
+        "attribute": "content",
+        "scope": "page",
+        "threshold": {
+          "min": 3
+        }
+      },
+      "fix": {
+        "instruction": "Add an og:type meta tag (e.g. 'product', 'article', 'website').",
+        "codeSnippet": "<meta property=\"og:type\" content=\"product\">",
+        "effort": "trivial",
+        "automated": true
+      },
+      "impact": {
+        "seo": "low",
+        "agent": "minor",
+        "performance": "none",
+        "conversion": "none"
+      }
+    },
+    "JSONLD-01": {
+      "id": "JSONLD-01",
+      "name": "JSON-LD Structured Data Present",
+      "description": "Structured data (schema.org JSON-LD) is the primary signal AI agents (ChatGPT, Perplexity, Gemini, Claude) read to extract facts, products, and entities. A page with no JSON-LD is nearly invisible to agentic retrieval.",
+      "category": "agent",
+      "priority": "P1",
+      "check": {
+        "type": "selector",
+        "selector": "script[type='application/ld+json']",
+        "scope": "page",
+        "threshold": {
+          "min": 1,
+          "max": 10
+        }
+      },
+      "fix": {
+        "instruction": "Add a <script type=\"application/ld+json\"> block with schema.org markup describing the page entity.",
+        "codeSnippet": "<script type=\"application/ld+json\">\n{\n  \"@context\": \"https://schema.org\",\n  \"@type\": \"Product\",\n  \"name\": \"Widget\"\n}\n</script>",
+        "effort": "moderate",
+        "automated": false
+      },
+      "impact": {
+        "seo": "high",
+        "agent": "blocking",
+        "performance": "none",
+        "conversion": "indirect-loss"
+      }
+    },
+    "JSONLD-02": {
+      "id": "JSONLD-02",
+      "name": "Product Schema Validity",
+      "description": "When a Product schema is present, agents expect name, image, and a populated offers.price. Missing or mistyped fields break product cards in agent answers and shopping integrations.",
+      "category": "e-commerce",
+      "priority": "P1",
+      "check": {
+        "type": "jsonld",
+        "jsonldType": "Product",
+        "requireContextSchemaOrg": true,
+        "requiredFields": ["name", "image", "offers.price", "sku"],
+        "fieldTypes": {
+          "name": "string",
+          "image": "url",
+          "offers.price": "number",
+          "sku": "string"
+        },
+        "scope": "page"
+      },
+      "fix": {
+        "instruction": "Ensure the Product JSON-LD includes name (string), image (absolute URL), offers.price (number), and sku (string). Set @context to https://schema.org.",
+        "codeSnippet": "{\n  \"@context\": \"https://schema.org\",\n  \"@type\": \"Product\",\n  \"name\": \"Widget\",\n  \"sku\": \"WGT-001\",\n  \"image\": \"https://example.com/img/widget.jpg\",\n  \"offers\": { \"@type\": \"Offer\", \"price\": 19.99, \"priceCurrency\": \"USD\" }\n}",
+        "effort": "moderate",
+        "automated": false
+      },
+      "impact": {
+        "seo": "high",
+        "agent": "blocking",
+        "performance": "none",
+        "conversion": "direct-loss"
+      }
+    },
+    "JSONLD-03": {
+      "id": "JSONLD-03",
+      "name": "Organization Schema Validity",
+      "description": "Organization schema tells agents who publishes the site, enabling entity linking and brand mentions in agent answers. name and logo are the minimum agents use.",
+      "category": "agent",
+      "priority": "P2",
+      "check": {
+        "type": "jsonld",
+        "jsonldType": "Organization",
+        "requireContextSchemaOrg": true,
+        "requiredFields": ["name", "logo"],
+        "fieldTypes": {
+          "name": "string",
+          "logo": "url"
+        },
+        "scope": "root"
+      },
+      "fix": {
+        "instruction": "Add Organization JSON-LD with name (string) and logo (absolute URL).",
+        "codeSnippet": "{\n  \"@context\": \"https://schema.org\",\n  \"@type\": \"Organization\",\n  \"name\": \"Acme Inc\",\n  \"logo\": \"https://example.com/logo.png\"\n}",
+        "effort": "easy",
+        "automated": false
+      },
+      "impact": {
+        "seo": "moderate",
+        "agent": "degraded",
+        "performance": "none",
+        "conversion": "none"
+      }
     }
   }
 }

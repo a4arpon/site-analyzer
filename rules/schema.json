@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://site-agent.dev/schemas/rule-spec.json",
-  "title": "SiteAgent Rule Specification",
-  "description": "Schema for defining audit rules consumed by the SiteAgent CLI engine.",
+  "$id": "https://webalyzer.dev/schemas/rule-spec.json",
+  "title": "Webalyzer Rule Specification",
+  "description": "Schema for defining audit rules consumed by the Webalyzer CLI engine.",
   "type": "object",
   "required": ["metadata", "rules"],
   "additionalProperties": false,
@@ -40,7 +40,16 @@
         "category": {
           "type": "string",
           "description": "Primary audit category.",
-          "enum": ["agent", "seo", "performance", "structure", "security", "accessibility", "e-commerce", "custom"]
+          "enum": [
+            "agent",
+            "seo",
+            "performance",
+            "structure",
+            "security",
+            "accessibility",
+            "e-commerce",
+            "custom"
+          ]
         },
         "tags": {
           "type": "array",
@@ -105,7 +114,12 @@
               "description": "Required engine capabilities. Engine skips pack if unavailable.",
               "items": {
                 "type": "string",
-                "enum": ["dom-parser", "js-execution", "screenshot", "mcp-bridge"]
+                "enum": [
+                  "dom-parser",
+                  "js-execution",
+                  "screenshot",
+                  "mcp-bridge"
+                ]
               }
             }
           }
@@ -116,7 +130,7 @@
       "type": "object",
       "description": "Map of rule definitions keyed by unique rule ID.",
       "patternProperties": {
-        "^[A-Z]{2,4}-\\d{2,3}$": {
+        "^[A-Z]{2,6}-\\d{2,3}$": {
           "type": "object",
           "description": "Individual audit rule definition.",
           "required": ["id", "name", "category", "priority", "check"],
@@ -140,7 +154,16 @@
             "category": {
               "type": "string",
               "description": "Audit category for grouping and filtering.",
-              "enum": ["agent", "seo", "performance", "structure", "security", "accessibility", "e-commerce", "custom"]
+              "enum": [
+                "agent",
+                "seo",
+                "performance",
+                "structure",
+                "security",
+                "accessibility",
+                "e-commerce",
+                "custom"
+              ]
             },
             "priority": {
               "type": "string",
@@ -155,7 +178,16 @@
                 "type": {
                   "type": "string",
                   "description": "Execution strategy for this rule.",
-                  "enum": ["selector", "header", "regex", "fetch", "script", "composite", "custom"]
+                  "enum": [
+                    "selector",
+                    "header",
+                    "regex",
+                    "fetch",
+                    "script",
+                    "composite",
+                    "custom",
+                    "jsonld"
+                  ]
                 },
                 "target": {
                   "type": "string",
@@ -191,7 +223,7 @@
                   "description": "Sub-rule IDs to compose for 'composite' type.",
                   "items": {
                     "type": "string",
-                    "pattern": "^[A-Z]{2,4}-\\d{2,3}$"
+              "pattern": "^[A-Z]{2,6}-\\d{2,3}$"
                   }
                 },
                 "compositeLogic": {
@@ -243,6 +275,33 @@
                   "description": "Which pages to evaluate.",
                   "enum": ["page", "site", "root"],
                   "default": "page"
+                },
+                "jsonldType": {
+                  "type": "string",
+                  "description": "Required @type for 'jsonld' checks (e.g. 'Product', 'Organization'). May match a single string or any entry in an array-valued @type."
+                },
+                "requireContextSchemaOrg": {
+                  "type": "boolean",
+                  "description": "For 'jsonld' checks: require @context to include schema.org.",
+                  "default": false
+                },
+                "requiredFields": {
+                  "type": "array",
+                  "description": "For 'jsonld' checks: dotted/nested paths that must be present and non-empty (e.g. 'name', 'offers.price', 'image[0].url').",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "fieldTypes": {
+                  "type": "object",
+                  "description": "For 'jsonld' checks: per-field type/format assertion. Key is a dotted path; value is the expected type (string|number|url|boolean|date).",
+                  "additionalProperties": {
+                    "type": "string",
+                    "enum": ["string", "number", "url", "boolean", "date"]
+                  },
+                  "propertyNames": {
+                    "pattern": "^[A-Za-z0-9_.\\[\\]]+$"
+                  }
                 }
               }
             },

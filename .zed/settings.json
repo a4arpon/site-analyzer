@@ -1,5 +1,11 @@
 {
-  "language_servers": ["deno", "snippet-completion-server", "codebook", "json-language-server"],
+  "disable_ai":false,
+  "language_servers": [
+    "!typescript-language-server",
+    "!oxfmt",
+    "!oxlint",
+    "deno"
+  ],
   "formatter": {
     "language_server": {
       "name": "deno"
@@ -7,6 +13,6 @@
   },
   "code_actions_on_format": {
     "source.fixAll.deno": true,
-    "source.removeUnusedImports": true
+    "source.organizeImports": true
   }
 }
