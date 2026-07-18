@@ -302,6 +302,82 @@
                   "propertyNames": {
                     "pattern": "^[A-Za-z0-9_.\\[\\]]+$"
                   }
+                },
+                "requiredGroups": {
+                  "type": "array",
+                  "description": "For 'jsonld' checks: groups of dotted paths where ALL members must co-exist. A group is only enforced when at least one member is present (partial data). Catches e.g. price without currency.",
+                  "items": {
+                    "type": "array",
+                    "items": { "type": "string" }
+                  }
+                },
+                "conditional": {
+                  "type": "array",
+                  "description": "For 'jsonld' checks: if-then requirements. If ifField is present, requireFields / requireGroups apply.",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["ifField"],
+                    "properties": {
+                      "ifField": { "type": "string" },
+                      "requireFields": {
+                        "type": "array",
+                        "items": { "type": "string" }
+                      },
+                      "requireGroups": {
+                        "type": "array",
+                        "items": {
+                          "type": "array",
+                          "items": { "type": "string" }
+                        }
+                      }
+                    }
+                  }
+                },
+                "enumValues": {
+                  "type": "object",
+                  "description": "For 'jsonld' checks: per-path allowed value sets. Value must be one of the listed strings.",
+                  "additionalProperties": {
+                    "type": "array",
+                    "items": { "type": "string" }
+                  },
+                  "propertyNames": {
+                    "pattern": "^[A-Za-z0-9_.\\[\\]]+$"
+                  }
+                },
+                "patterns": {
+                  "type": "object",
+                  "description": "For 'jsonld' checks: per-path regex (format) validation. Key is dotted path; value is a JS regex source.",
+                  "additionalProperties": { "type": "string" },
+                  "propertyNames": {
+                    "pattern": "^[A-Za-z0-9_.\\[\\]]+$"
+                  }
+                },
+                "numericRange": {
+                  "type": "object",
+                  "description": "For 'jsonld' checks: per-path numeric bounds. exclusiveMin makes min a strict > check.",
+                  "additionalProperties": {
+                    "type": "object",
+                    "properties": {
+                      "min": { "type": "number" },
+                      "max": { "type": "number" },
+                      "exclusiveMin": { "type": "boolean", "default": false }
+                    }
+                  },
+                  "propertyNames": {
+                    "pattern": "^[A-Za-z0-9_.\\[\\]]+$"
+                  }
+                },
+                "arrayItemTypes": {
+                  "type": "object",
+                  "description": "For 'jsonld' checks: validate EVERY element of an array-valued path. Key is dotted path; value is the expected element type.",
+                  "additionalProperties": {
+                    "type": "string",
+                    "enum": ["string", "number", "url", "boolean", "date"]
+                  },
+                  "propertyNames": {
+                    "pattern": "^[A-Za-z0-9_.\\[\\]]+$"
+                  }
                 }
               }
             },

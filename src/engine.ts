@@ -614,35 +614,193 @@ export class RuleCheckerEngine {
       }
     }
 
-    // Validate required fields + types against each target node.
+    // Validate each target node against the (fully declarative) rule spec.
     const findings: Finding[] = []
+    for (const node of targets) {
+      this.validateJsonLdNode(rule, page.url, check, node, findings)
+    }
+
+    return findings
+  }
+
+  // Apply ALL jsonld assertions to a single schema node. Every check is driven
+  // by the rule's declarative fields — the engine hardcodes no schema vocab.
+  // Paths are array-aware (see getPath): a path may resolve to multiple leaves
+  // when it traverses an array (e.g. offers[].price).
+  private validateJsonLdNode(
+    rule: RuleDefinition,
+    url: string,
+    check: Check,
+    node: unknown,
+    findings: Finding[],
+  ): void {
     const requiredFields = check.requiredFields ?? []
     const fieldTypes = check.fieldTypes ?? {}
 
-    if (requiredFields.length > 0) {
-      for (const node of targets) {
-        for (const path of requiredFields) {
-          const val = this.getPath(node, path)
-          if (this.isEmpty(val)) {
-            findings.push(this.createFinding(rule, page.url, {
-              jsonldField: path,
-              jsonldError: `missing or empty field "${path}"`,
-            }))
-            continue
-          }
-          const expected = fieldTypes[path]
-          if (expected && !this.matchesType(val, expected)) {
-            findings.push(this.createFinding(rule, page.url, {
+    // Resolve a path to a list of leaf values (1 entry if no array traversed).
+    const leaves = (path: string): unknown[] => this.asArray(this.getPath(node, path))
+
+    // 1. Required field presence + primitive type.
+    for (const path of requiredFields) {
+      const vals = leaves(path)
+      if (vals.every((v) => this.isEmpty(v))) {
+        findings.push(this.createFinding(rule, url, {
+          jsonldField: path,
+          jsonldError: `missing or empty field "${path}"`,
+        }))
+        continue
+      }
+      const expected = fieldTypes[path]
+      if (expected) {
+        for (const v of vals) {
+          if (!this.isEmpty(v) && !this.matchesType(v, expected)) {
+            findings.push(this.createFinding(rule, url, {
               jsonldField: path,
               jsonldError: `field "${path}" failed type check (expected ${expected})`,
-              actualValue: String(Array.isArray(val) ? JSON.stringify(val) : val).slice(0, 200),
+              actualValue: String(Array.isArray(v) ? JSON.stringify(v) : v).slice(0, 200),
             }))
           }
         }
       }
     }
 
-    return findings
+    // 2. Required groups — all members must co-exist (per resolved index).
+    for (const group of check.requiredGroups ?? []) {
+      const cols = group.map((p) => leaves(p))
+      const n = Math.max(1, ...cols.map((c) => c.length))
+      for (let i = 0; i < n; i++) {
+        const present = group.filter((_, gi) => !this.isEmpty(cols[gi][i]))
+        const missing = group.filter((_, gi) => this.isEmpty(cols[gi][i]))
+        if (present.length > 0 && missing.length > 0) {
+          findings.push(this.createFinding(rule, url, {
+            jsonldField: group.join("+"),
+            jsonldError: `incomplete group — present [${present.join(", ")}] but missing [${missing.join(", ")}]`,
+          }))
+        }
+      }
+    }
+
+    // 3. Conditional — if a trigger field exists, enforce its requirements.
+    for (const cond of check.conditional ?? []) {
+      const trigger = leaves(cond.ifField)
+      if (trigger.every((v) => this.isEmpty(v))) continue
+      for (const path of cond.requireFields ?? []) {
+        if (leaves(path).every((v) => this.isEmpty(v))) {
+          findings.push(this.createFinding(rule, url, {
+            jsonldField: path,
+            jsonldError: `field "${path}" required because "${cond.ifField}" is present`,
+          }))
+        }
+      }
+      for (const group of cond.requireGroups ?? []) {
+        const cols = group.map((p) => leaves(p))
+        const n = Math.max(1, ...cols.map((c) => c.length))
+        for (let i = 0; i < n; i++) {
+          const missing = group.filter((_, gi) => this.isEmpty(cols[gi][i]))
+          if (missing.length > 0) {
+            findings.push(this.createFinding(rule, url, {
+              jsonldField: group.join("+"),
+              jsonldError: `incomplete group [${missing.join(", ")}] required because "${cond.ifField}" is present`,
+            }))
+          }
+        }
+      }
+    }
+
+    // 4. Enum membership.
+    for (const [path, allowed] of Object.entries(check.enumValues ?? {})) {
+      for (const v of leaves(path)) {
+        if (this.isEmpty(v)) continue
+        const str = String(v)
+        if (!allowed.includes(str)) {
+          findings.push(this.createFinding(rule, url, {
+            jsonldField: path,
+            jsonldError: `field "${path}" value "${str}" not in allowed set [${allowed.join(", ")}]`,
+            actualValue: str.slice(0, 200),
+          }))
+        }
+      }
+    }
+
+    // 5. Regex pattern (format) checks.
+    for (const [path, pattern] of Object.entries(check.patterns ?? {})) {
+      let re: RegExp
+      try {
+        re = new RegExp(pattern)
+      } catch {
+        findings.push(this.createFinding(rule, url, {
+          jsonldError: `invalid regex pattern in rule for "${path}": ${pattern}`,
+        }))
+        continue
+      }
+      for (const v of leaves(path)) {
+        if (this.isEmpty(v)) continue
+        if (!re.test(String(v))) {
+          findings.push(this.createFinding(rule, url, {
+            jsonldField: path,
+            jsonldError: `field "${path}" value "${String(v).slice(0, 80)}" fails format /${pattern}/`,
+            actualValue: String(v).slice(0, 200),
+          }))
+        }
+      }
+    }
+
+    // 6. Numeric range checks.
+    for (const [path, rng] of Object.entries(check.numericRange ?? {})) {
+      for (const v of leaves(path)) {
+        if (this.isEmpty(v)) continue
+        const num = typeof v === "number" ? v : Number(v)
+        if (isNaN(num)) continue
+        if (rng.exclusiveMin && num <= (rng.min ?? -Infinity)) {
+          findings.push(this.createFinding(rule, url, {
+            jsonldField: path,
+            jsonldError: `field "${path}" value ${num} must be > ${rng.min}`,
+            actualValue: String(num),
+          }))
+        } else if (!rng.exclusiveMin && rng.min !== undefined && num < rng.min) {
+          findings.push(this.createFinding(rule, url, {
+            jsonldField: path,
+            jsonldError: `field "${path}" value ${num} must be >= ${rng.min}`,
+            actualValue: String(num),
+          }))
+        }
+        if (rng.max !== undefined && num > rng.max) {
+          findings.push(this.createFinding(rule, url, {
+            jsonldField: path,
+            jsonldError: `field "${path}" value ${num} must be <= ${rng.max}`,
+            actualValue: String(num),
+          }))
+        }
+      }
+    }
+
+    // 7. Array-item type — validate EVERY element of an array-valued path
+    //    where the path resolves to an array of primitives (e.g. offers:[9.99,25]).
+    for (const [path, itemType] of Object.entries(check.arrayItemTypes ?? {})) {
+      const val = this.getPath(node, path)
+      if (this.isEmpty(val)) continue
+      if (!Array.isArray(val)) {
+        findings.push(this.createFinding(rule, url, {
+          jsonldField: path,
+          jsonldError: `field "${path}" expected array for item-type check, got ${typeof val}`,
+        }))
+        continue
+      }
+      val.forEach((item, i) => {
+        if (this.isEmpty(item) || !this.matchesType(item, itemType)) {
+          findings.push(this.createFinding(rule, url, {
+            jsonldField: `${path}[${i}]`,
+            jsonldError: `array item ${i} of "${path}" failed type check (expected ${itemType})`,
+            actualValue: String(Array.isArray(item) ? JSON.stringify(item) : item).slice(0, 200),
+          }))
+        }
+      })
+    }
+  }
+
+  // Wrap a value into an array unless it is already one.
+  private asArray(v: unknown): unknown[] {
+    return Array.isArray(v) ? v : [v]
   }
 
   // Unwrap a parsed JSON value into a flat list of schema nodes.
@@ -674,7 +832,11 @@ export class RuleCheckerEngine {
     return false
   }
 
-  // Dotted-path getter. Supports "a.b.c" and "a[0].b".
+  // Dotted-path getter. Supports "a.b.c", "a[0].b", and array traversal:
+  // if an intermediate value is an array, the remaining path is applied to
+  // each element and the results are returned as an array. A scalar result
+  // is returned as-is. This lets rules target e.g. offers[].price uniformly
+  // whether `offers` is a single object or an array of offers.
   private getPath(root: unknown, path: string): unknown {
     const parts = path
       .replace(/\[(\d+)\]/g, ".$1")
@@ -683,9 +845,23 @@ export class RuleCheckerEngine {
     let cur: unknown = root
     for (const p of parts) {
       if (cur === null || typeof cur !== "object") return undefined
+      if (Array.isArray(cur)) {
+        // Map remaining path over each element, recurse per element.
+        const rest = path.slice(path.indexOf(p))
+        return cur.map((el) => this.walkFrom(el, p, rest))
+      }
       cur = (cur as Record<string, unknown>)[p]
     }
     return cur
+  }
+
+  // Walk one segment `seg` then the rest of `rest` (includes seg) from `el`.
+  private walkFrom(el: unknown, seg: string, rest: string): unknown {
+    if (el === null || typeof el !== "object") return undefined
+    const next = (el as Record<string, unknown>)[seg]
+    const after = rest.slice(seg.length + 1) // drop "seg."
+    if (!after) return next
+    return this.getPath(next, after)
   }
 
   private isEmpty(v: unknown): boolean {
@@ -863,7 +1039,10 @@ export class RuleCheckerEngine {
 
     const total = this.enabledRules.length
     const failed = findings.length
-    const passed = total - failed
+    // A rule "passes" if it produced no findings. One rule can yield many
+    // findings, so count distinct failing rules rather than subtracting.
+    const failingRules = new Set(findings.map((f) => f.ruleId)).size
+    const passed = Math.max(0, total - failingRules)
 
     // Start at 100, subtract weighted points per finding, floor at 0.
     const penalty = findings.reduce(

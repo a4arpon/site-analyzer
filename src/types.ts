@@ -93,6 +93,19 @@ export type Check = {
   requireContextSchemaOrg?: boolean
   requiredFields?: string[]
   fieldTypes?: Record<string, JsonLdFieldType>
+  // Relational / format assertions (all declarative, no hardcoded schema).
+  requiredGroups?: string[][] // each inner array: all fields must co-exist
+  conditional?: JsonLdConditional[]
+  enumValues?: Record<string, string[]> // path -> allowed values
+  patterns?: Record<string, string> // path -> regex source
+  numericRange?: Record<string, { min?: number; max?: number; exclusiveMin?: boolean }>
+  arrayItemTypes?: Record<string, JsonLdFieldType> // validate every array element
+}
+
+export type JsonLdConditional = {
+  ifField: string // dotted path; if non-empty, requirements apply
+  requireFields?: string[]
+  requireGroups?: string[][]
 }
 
 export type Fix = {
