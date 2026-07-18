@@ -6,7 +6,7 @@
   "preferPackageJson": true,
   "tasks": {
     "dev": "deno run --allow-net --allow-read ./src/app.ts",
-    "build:compile": " deno compile --bundle --minify --target x86_64-unknown-linux-gnu --output ./dist/web-analyzer ./src/app.ts"
+    "build:compile": "deno compile --bundle --minify --allow-net --allow-read --allow-env --target x86_64-unknown-linux-gnu --output ./dist/web-analyzer ./src/app.ts"
   },
   "imports": {
     "#src/": "./src/"
