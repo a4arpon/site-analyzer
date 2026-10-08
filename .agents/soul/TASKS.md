@@ -4,10 +4,10 @@ This file is the working PRD for the site-analyzer ("SiteAgent") project.
 Update it as scope changes. Preserved across model/session switches.
 
 ## Vision
-A Deno CLI that audits any website against versioned, schema-validated JSON rule packs and reports SEO / agent-readiness / e-commerce findings — each finding carrying remediation instructions + code snippets so an LLM or dev can fix it. Rule packs are the product, not the code.
+A Deno CLI that audits any website against versioned, schema-validated JSON rule packs and reports SEO / agent-readiness / accessibility / e-commerce findings — each finding carrying remediation instructions + code snippets so an LLM or dev can fix it. Rule packs are the product, not the code.
 
 ## Current state (verified)
-- Working: crawl (`src/crawler.ts`) + DOM parse + rule eval engine (`src/engine.ts`), 7 check types (selector/header/regex/fetch/composite/jsonld/script), 12 SEO/agent/OG/JSON-LD rules live in `rules/e-commerce.json`. `jsonld` fully rule-driven (no static field assumptions).
+- Working: crawl (`src/crawler.ts`) + DOM parse + rule eval engine (`src/engine.ts`), 10 check types (selector/header/regex/fetch/composite/jsonld/unique/pairing/sequence/script), packs: `rules/core.json` (40 rules: SEO/OG/JSON-LD + AXS a11y + AG agent-nav) + `rules/e-commerce.json` (3-rule commerce add-on, comma `--rule` merges). `jsonld` fully rule-driven (no static field assumptions); nested objects collected deeply.
 - Health score + letter grade implemented (`calculateStats` + `scoreToGrade`, weights in `config.ts`).
 - Report renderer `display.ts` (`formatReport`) — 4 modes: `info` (colorized), `overview` (plain), `agent` (key=value), `compact-agent` (pipe-delimited, ~83% token cut). `--output-type` CLI flag added.
 - NOT implemented: `script` check type (sandboxed runner), `custom` check type, `js-execution` / `screenshot` / `mcp-bridge` engine features (declared in `types.ts` only).
@@ -32,7 +32,7 @@ A Deno CLI that audits any website against versioned, schema-validated JSON rule
 ## NEXT (user-directed, immediate) — DONE
 Implemented (2026-07-19):
 - CLI: `deno task dev --site=<url> [--rule=<local|remote>]`.
-- `src/rules-loader.ts`: `loadRulePack(source)` — local path OR remote URL, JSON.parse + structural validation (ID pattern, key/id, required fields, valid check.type).
+- `src/rules-loader.ts`: `loadRulePacks(spec)` — comma-separated sources, each local path OR remote URL, JSON.parse + structural validation (ID pattern, key/id, required fields, valid check.type); `mergeRulePacks` unions rules (later wins, warns).
 - `src/crawler.ts`: `discoverUrls(site)` — robots.txt `Sitemap:` + `/sitemap.xml` + `/sitemap_index.xml`, recursive index parsing, depth-guarded. Only called when `--site` has a glob (see `src/site-spec.ts`); plain URL = single-page mode, never probes sitemaps. 0 glob matches → warn + exit 0 (no silent fallback).
 - `app.ts`: parses `--site`(required, site spec: plain URL=single page / glob=scoped sitemap crawl)/`--rule`/`--output-type`. **No `--rule` → run nothing**, print `BUILTIN_SKILLS` JSON array (name/description/raw GitHub url; stdout pure JSON in machine modes) and exit 0. With `--rule` → loads pack, resolves scope, runs `auditMany`, prints `formatReport` (with attribution footer) per URL.
 - Verified live: remote pack load + 84-URL sitemap crawl on sitemaps.org.

@@ -2,7 +2,7 @@ import { log } from "node:console"
 import { RuleCheckerEngine } from "#src/engine.ts"
 import { formatReport, type OutputType } from "#src/display.ts"
 import { AppBranding, AppConfig, EngineDefaults } from "#src/config.ts"
-import { loadRulePack } from "#src/rules-loader.ts"
+import { loadRulePacks } from "#src/rules-loader.ts"
 import { discoverUrls } from "#src/crawler.ts"
 import { matchPath, parseSiteSpec } from "#src/site-spec.ts"
 import { RuleT } from "#src/types.ts"
@@ -18,9 +18,16 @@ interface BuiltInSkill {
 
 const BUILTIN_SKILLS: BuiltInSkill[] = [
   {
+    name: "core",
+    description:
+      "Everything pack: SEO + Open Graph + JSON-LD + accessibility (alt, labels, roles, landmarks, heading order, duplicate ids) + AI-agent navigability (llms.txt, clickable hooks, dead links, forms). 40 rules.",
+    url:
+      "https://raw.githubusercontent.com/a4arpon/site-analyzer/main/rules/core.json",
+  },
+  {
     name: "e-commerce",
     description:
-      "Core SEO + agent-readiness checks for online stores (title, H1, meta, canonical, lang).",
+      "Commerce add-on: Product/Offer/BreadcrumbList JSON-LD validity (price, currency, availability). Load together with core: --rule=core,e-commerce.",
     url:
       "https://raw.githubusercontent.com/a4arpon/site-analyzer/main/rules/e-commerce.json",
   },
@@ -66,7 +73,11 @@ if (!site) {
   log(
     "                  e.g. https://example.com/*                  (whole site)",
   )
-  log("  --rule        path or URL to a rule pack (required)")
+  log(
+    "  --rule        comma-separated paths or URLs to rule packs (required)",
+  )
+  log("                  e.g. ./rules/core.json")
+  log("                  e.g. ./rules/core.json,./rules/e-commerce.json")
   log(`  --output-type ${OUTPUT_TYPES.join("|")} (default: info)`)
   log(`${AppBranding.maintainer} │ ${AppBranding.repo}`)
   Deno.exit(1)
@@ -125,7 +136,7 @@ if (!rule) {
   Deno.exit(0)
 }
 
-const pack: RuleT = await loadRulePack(rule)
+const pack: RuleT = await loadRulePacks(rule)
 
 const engine = new RuleCheckerEngine(pack, {
   concurrency: EngineDefaults.concurrency,

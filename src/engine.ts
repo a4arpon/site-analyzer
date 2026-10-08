@@ -95,6 +95,9 @@ class Logger {
   success(msg: string) {
     if (this.level >= 3) this.emit("OK ", "32", msg)
   }
+  get isDebug(): boolean {
+    return this.level >= 4
+  }
   rulePass(id: string, name: string) {
     if (this.level >= 3) {
       log(`  \x1b[32m✓\x1b[0m \x1b[90m[${id}]\x1b[0m ${name}`)
@@ -352,6 +355,15 @@ export class RuleCheckerEngine {
         case "jsonld":
           findings = this.checkJsonLd(rule, page)
           break
+        case "unique":
+          findings = this.checkUnique(rule, page)
+          break
+        case "pairing":
+          findings = this.checkPairing(rule, page)
+          break
+        case "sequence":
+          findings = this.checkSequence(rule, page)
+          break
         case "script":
           findings = this.checkScript(rule, page)
           break
@@ -403,6 +415,31 @@ export class RuleCheckerEngine {
       `[${rule.id}] selector "${check.selector}" matched ${elements.length} node(s)`,
     )
 
+    // Per-element mode: value = count of elements violating the `each` spec.
+    // Default threshold equals 0 (zero violations passes).
+    if (check.each) {
+      const { count, samples } = this.countEachViolations(elements, check)
+      const passes = this.meetsThreshold(
+        count,
+        check.threshold ?? {
+          equals: 0,
+        },
+      )
+      this.logger.debug(
+        `[${rule.id}] each.${check.each.attribute}: ${count} violation(s)`,
+      )
+      if (passes) return []
+      return [
+        this.createFinding(rule, page.url, {
+          selector: check.selector,
+          attribute: check.each.attribute,
+          matchedCount: elements.length,
+          actualValue: String(count).slice(0, 200),
+          violatingSamples: samples.slice(0, 10),
+        }),
+      ]
+    }
+
     const value = this.extractSelectorValue(elements, check)
     const passes = this.meetsThreshold(value, check.threshold)
 
@@ -416,6 +453,230 @@ export class RuleCheckerEngine {
         actualValue: String(value).slice(0, 200),
       }),
     ]
+  }
+
+  // Count elements whose attribute violates the declarative `each` spec.
+  // Missing/blank attribute counts only when nonEmpty is set; allowedValues
+  // and pattern apply to present values.
+  private countEachViolations(
+    elements: AnyNode[],
+    check: Check,
+  ): { count: number; samples: string[] } {
+    const each = check.each!
+    const re = each.pattern ? new RegExp(each.pattern) : null
+    let count = 0
+    const samples: string[] = []
+
+    for (const node of elements) {
+      if (node.type !== "tag") continue
+      const value = DomUtils.getAttributeValue(node, each.attribute) ?? ""
+      let violated = false
+      let reason = ""
+
+      if (!value.trim()) {
+        if (each.nonEmpty) {
+          violated = true
+          reason = "missing or empty"
+        }
+      } else {
+        if (each.allowedValues && !each.allowedValues.includes(value)) {
+          violated = true
+          reason = `"${value.slice(0, 40)}" not in allowed set`
+        } else if (re && !re.test(value)) {
+          violated = true
+          reason = `"${value.slice(0, 40)}" fails /${each.pattern}/`
+        }
+      }
+
+      if (violated) {
+        count++
+        samples.push(`<${node.name}> ${reason}`)
+      }
+    }
+    return { count, samples }
+  }
+
+  // Duplicate attribute detection (e.g. duplicate ids). Value = number of
+  // distinct values occurring more than once; default threshold equals 0.
+  private checkUnique(rule: RuleDefinition, page: CrawledPage): Finding[] {
+    const check = rule.check
+    if (!check.selector || !check.attribute) {
+      this.logger.warn(`[${rule.id}] unique check needs selector + attribute`)
+      return []
+    }
+
+    const doc = this.getParsedDocument(page)
+    const elements: AnyNode[] = selectAll(check.selector, doc)
+    const counts = new Map<string, number>()
+    for (const node of elements) {
+      if (node.type !== "tag") continue
+      const value = (DomUtils.getAttributeValue(node, check.attribute) ?? "")
+        .trim()
+      if (!value) continue
+      counts.set(value, (counts.get(value) ?? 0) + 1)
+    }
+
+    const dupes = [...counts.entries()].filter(([, n]) => n > 1)
+    const passes = this.meetsThreshold(
+      dupes.length,
+      check.threshold ?? {
+        equals: 0,
+      },
+    )
+    this.logger.debug(
+      `[${rule.id}] unique ${check.attribute}: ${dupes.length} duplicated value(s)`,
+    )
+    if (passes) return []
+
+    return [
+      this.createFinding(rule, page.url, {
+        selector: check.selector,
+        attribute: check.attribute,
+        actualValue: String(dupes.length),
+        duplicateValues: dupes
+          .slice(0, 10)
+          .map(([v, n]) => `${v} ×${n}`),
+      }),
+    ]
+  }
+
+  // Cross-element reference integrity: every matched element's attribute
+  // value (or each whitespace-separated token) must resolve against the
+  // target selector(s), where "{value}" is interpolated. Passes when the
+  // count of broken references meets the threshold (default: 0).
+  private checkPairing(rule: RuleDefinition, page: CrawledPage): Finding[] {
+    const check = rule.check
+    const templates = check.requireAnyOf ??
+      (check.requireSelector ? [check.requireSelector] : [])
+    if (!check.selector || !check.attribute || templates.length === 0) {
+      this.logger.warn(
+        `[${rule.id}] pairing check needs selector + attribute + requireSelector/requireAnyOf`,
+      )
+      return []
+    }
+
+    const doc = this.getParsedDocument(page)
+    const elements: AnyNode[] = selectAll(check.selector, doc)
+    const samples: string[] = []
+    let broken = 0
+
+    for (const node of elements) {
+      if (node.type !== "tag") continue
+      const raw = (DomUtils.getAttributeValue(node, check.attribute) ?? "")
+        .trim()
+      const tokens = check.tokenize ? raw.split(/\s+/).filter(Boolean) : [raw]
+
+      if (!raw || tokens.length === 0) {
+        broken++
+        samples.push(`<${node.name}> missing "${check.attribute}"`)
+        continue
+      }
+
+      for (const token of tokens) {
+        const resolved = templates.some((tpl) =>
+          selectAll(
+            tpl.replace(/\{value\}/g, this.escapeAttrValue(token)),
+            doc,
+          ).length > 0
+        )
+        if (!resolved) {
+          broken++
+          samples.push(`<${node.name}> "${token}" → no match`)
+        }
+      }
+    }
+
+    const passes = this.meetsThreshold(
+      broken,
+      check.threshold ?? {
+        equals: 0,
+      },
+    )
+    this.logger.debug(
+      `[${rule.id}] pairing: ${broken} broken reference(s) across ${elements.length} node(s)`,
+    )
+    if (passes) return []
+
+    return [
+      this.createFinding(rule, page.url, {
+        selector: check.selector,
+        attribute: check.attribute,
+        matchedCount: elements.length,
+        actualValue: String(broken),
+        brokenReferences: samples.slice(0, 10),
+      }),
+    ]
+  }
+
+  // Escape a value for use inside a double-quoted CSS attribute selector.
+  private escapeAttrValue(v: string): string {
+    return v.replace(/\\/g, "\\\\").replace(/"/g, '\\"')
+  }
+
+  // Document-order sequence checks (e.g. heading hierarchy: h1→h2→h3, never
+  // h2→h4). Value = number of skips; default threshold equals 0.
+  private checkSequence(rule: RuleDefinition, page: CrawledPage): Finding[] {
+    const check = rule.check
+    if (!check.selector) {
+      this.logger.warn(`[${rule.id}] sequence check needs selector`)
+      return []
+    }
+
+    const doc = this.getParsedDocument(page)
+    const levels: number[] = []
+    const elements: AnyNode[] = selectAll(check.selector, doc)
+    for (const node of elements) {
+      if (node.type !== "tag") continue
+      const level = this.elementLevel(node, check)
+      if (level !== null) levels.push(level)
+    }
+
+    const samples: string[] = []
+    let skips = 0
+    for (let i = 1; i < levels.length; i++) {
+      if (levels[i] > levels[i - 1] + 1) {
+        skips++
+        samples.push(
+          `level ${levels[i - 1]} → ${levels[i]} (skips ${levels[i - 1] + 1})`,
+        )
+      }
+    }
+
+    const passes = this.meetsThreshold(
+      skips,
+      check.threshold ?? {
+        equals: 0,
+      },
+    )
+    this.logger.debug(
+      `[${rule.id}] sequence: ${levels.length} node(s), ${skips} skip(s)`,
+    )
+    if (passes) return []
+
+    return [
+      this.createFinding(rule, page.url, {
+        selector: check.selector,
+        actualValue: String(skips),
+        sequenceSamples: samples.slice(0, 10),
+      }),
+    ]
+  }
+
+  // Numeric level of an element: explicit levelAttribute, else the h1-h6 tag
+  // digit, else aria-level. Returns null when no level can be determined
+  // (element is skipped in the sequence).
+  private elementLevel(node: Element, check: Check): number | null {
+    const parse = (raw: string | undefined): number | null => {
+      if (!raw) return null
+      const n = parseInt(raw, 10)
+      return Number.isFinite(n) && n >= 1 && n <= 6 ? n : null
+    }
+    if (check.levelAttribute) {
+      return parse(DomUtils.getAttributeValue(node, check.levelAttribute))
+    }
+    const tag = /^h([1-6])$/.exec(node.name)
+    if (tag) return Number(tag[1])
+    return parse(DomUtils.getAttributeValue(node, "aria-level"))
   }
 
   private checkHeader(rule: RuleDefinition, page: CrawledPage): Finding[] {
@@ -828,7 +1089,10 @@ export class RuleCheckerEngine {
     return Array.isArray(v) ? v : [v]
   }
 
-  // Unwrap a parsed JSON value into a flat list of schema nodes.
+  // Unwrap a parsed JSON value into a flat list of schema nodes. Walks ALL
+  // nested objects (deep), so objects embedded inline (e.g. an Offer inside
+  // Product.offers, or a Review inside a Product) are individually
+  // addressable by `jsonldType` filters — not just roots and @graph members.
   private collectNodes(value: unknown, out: unknown[]): void {
     if (value === null || typeof value !== "object") return
     if (Array.isArray(value)) {
@@ -836,10 +1100,10 @@ export class RuleCheckerEngine {
       return
     }
     const obj = value as Record<string, unknown>
-    if ("@graph" in obj && Array.isArray(obj["@graph"])) {
-      for (const g of obj["@graph"]) this.collectNodes(g, out)
-    }
     out.push(obj)
+    for (const v of Object.values(obj)) {
+      if (v !== null && typeof v === "object") this.collectNodes(v, out)
+    }
   }
 
   // @type may be a string or an array of strings.
@@ -944,8 +1208,11 @@ export class RuleCheckerEngine {
     const start = performance.now()
     const doc = parseDocument(page.html)
     const elapsed = Math.round(performance.now() - start)
-    const elCount = selectAll("*", doc).length
-    this.logger.success(`DOM parsed │ ${elCount} elements │ ${elapsed}ms`)
+    // Element count requires a full-tree scan — only worth it for debug logs.
+    if (this.logger.isDebug) {
+      this.logger.debug(`DOM parsed │ ${selectAll("*", doc).length} elements`)
+    }
+    this.logger.success(`DOM parsed │ ${elapsed}ms`)
 
     if (this.options.cache) page.document = doc
     return doc
@@ -976,6 +1243,13 @@ export class RuleCheckerEngine {
         .map((el) => DomUtils.getAttributeValue(el, "content") || "")
         .join(" ")
         .trim()
+    }
+
+    // Numeric `equals` → element count. Without this, {equals: 0}
+    // ("must match nothing") would fall through to TEXT-LENGTH comparison
+    // and vacuously pass on text-less elements like <img> or <input>.
+    if (typeof check.threshold?.equals === "number") {
+      return elements.length
     }
 
     // Heuristic: small threshold max → count elements, else → text length
@@ -1057,6 +1331,9 @@ export class RuleCheckerEngine {
     if (rule.check.type === "selector") return this.checkSelector(rule, page)
     if (rule.check.type === "header") return this.checkHeader(rule, page)
     if (rule.check.type === "regex") return this.checkRegex(rule, page)
+    if (rule.check.type === "unique") return this.checkUnique(rule, page)
+    if (rule.check.type === "pairing") return this.checkPairing(rule, page)
+    if (rule.check.type === "sequence") return this.checkSequence(rule, page)
     return []
   }
 

@@ -138,7 +138,7 @@
             "id": {
               "type": "string",
               "description": "Unique rule identifier. Format: CATEGORY PREFIX + NUMBER.",
-              "pattern": "^[A-Z]{2,4}-\\d{2,3}$"
+              "pattern": "^[A-Z]{2,6}-\\d{2,3}$"
             },
             "name": {
               "type": "string",
@@ -186,7 +186,10 @@
                     "script",
                     "composite",
                     "custom",
-                    "jsonld"
+                    "jsonld",
+                    "unique",
+                    "pairing",
+                    "sequence"
                   ]
                 },
                 "target": {
@@ -378,6 +381,56 @@
                   "propertyNames": {
                     "pattern": "^[A-Za-z0-9_.\\[\\]]+$"
                   }
+                },
+                "each": {
+                  "type": "object",
+                  "description": "For 'selector' checks: per-element attribute assertion. EVERY matched element's attribute must satisfy these. Value = count of violating elements; default threshold equals 0. Vocabularies (allowedValues/pattern) live in the rule pack — the engine hardcodes none.",
+                  "required": ["attribute"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "attribute": {
+                      "type": "string",
+                      "description": "HTML attribute to validate on each matched element."
+                    },
+                    "allowedValues": {
+                      "type": "array",
+                      "description": "Exact allowed values (e.g. valid ARIA roles). Present values must be a member.",
+                      "items": { "type": "string" }
+                    },
+                    "pattern": {
+                      "type": "string",
+                      "description": "JS regex source the attribute value must match (e.g. BCP-47 lang format)."
+                    },
+                    "nonEmpty": {
+                      "type": "boolean",
+                      "description": "Attribute must exist and be non-blank on every matched element.",
+                      "default": false
+                    }
+                  }
+                },
+                "requireSelector": {
+                  "type": "string",
+                  "description": "For 'pairing' checks: target selector each reference must resolve against. '{value}' is interpolated with the referring element's attribute value (CSS-escaped)."
+                },
+                "requireAnyOf": {
+                  "type": "array",
+                  "description": "For 'pairing' checks: alternative target selectors — a reference passes when ANY matches. '{value}' interpolation as in requireSelector.",
+                  "items": { "type": "string" }
+                },
+                "tokenize": {
+                  "type": "boolean",
+                  "description": "For 'pairing' checks: split the attribute on whitespace and require EVERY token to resolve (e.g. aria-labelledby id lists).",
+                  "default": false
+                },
+                "levelAttribute": {
+                  "type": "string",
+                  "description": "For 'sequence' checks: numeric attribute to read levels from (e.g. 'aria-level'). Omit to use the h1-h6 tag digit, falling back to aria-level."
+                },
+                "sequenceRule": {
+                  "type": "string",
+                  "description": "For 'sequence' checks: how levels may progress in document order. 'no-skip': level may drop freely but rise by at most 1 (h2→h4 is a violation).",
+                  "enum": ["no-skip"],
+                  "default": "no-skip"
                 }
               }
             },

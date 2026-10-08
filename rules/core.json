@@ -1,0 +1,1183 @@
+{
+  "$schema": "./schema.json",
+  "metadata": {
+    "name": "Webalyzer Core",
+    "slug": "core",
+    "description": "Everything pack: SEO, Open Graph, JSON-LD, accessibility, and AI-agent navigability — one run scores site quality for humans and agents.",
+    "version": "1.0.0",
+    "category": "agent",
+    "tags": ["seo", "accessibility", "agent-ready", "core"],
+    "createdBy": {
+      "name": "Xia",
+      "email": "a4arpon@email.com",
+      "url": "https://github.com/a4arpon"
+    },
+    "updatedAt": "2026-10-08",
+    "license": "MIT"
+  },
+  "rules": {
+    "SEO-01": {
+      "id": "SEO-01",
+      "name": "Single H1 Per Page",
+      "description": "Each page must have exactly one H1 tag. Multiple H1s confuse AI agents and search engines about the primary topic. Zero H1s make the page untitled for agents.",
+      "category": "seo",
+      "priority": "P0",
+      "check": {
+        "type": "selector",
+        "selector": "h1",
+        "scope": "page",
+        "threshold": { "min": 1, "max": 1 }
+      },
+      "fix": {
+        "instruction": "Ensure every page has exactly one <h1> tag describing the primary topic. If multiple H1s exist, downgrade extras to <h2>. If zero exist, add one at the top of <body>.",
+        "codeSnippet": "<h1>Primary Topic of This Page</h1>\n<!-- Only one h1 per page. Use h2-h6 for subsections. -->",
+        "effort": "easy",
+        "automated": true
+      },
+      "impact": {
+        "seo": "critical",
+        "agent": "blocking",
+        "performance": "none",
+        "conversion": "none"
+      },
+      "examples": [
+        {
+          "case": "Page with one h1",
+          "input": "<h1>About Us</h1><h2>Team</h2>",
+          "expected": "pass"
+        },
+        {
+          "case": "Page with two h1s",
+          "input": "<h1>About Us</h1><h1>Our Team</h1>",
+          "expected": "fail"
+        }
+      ]
+    },
+    "SEO-02": {
+      "id": "SEO-02",
+      "name": "Title Tag Presence and Length",
+      "description": "Every page must have a <title> tag between 30 and 60 characters. Missing titles make pages untitled in search results and agent context. Too long gets truncated.",
+      "category": "seo",
+      "priority": "P0",
+      "check": {
+        "type": "selector",
+        "selector": "title",
+        "scope": "page",
+        "threshold": { "min": 30, "max": 60 }
+      },
+      "fix": {
+        "instruction": "Add a <title> tag inside <head> with 30-60 characters. Include primary keyword and brand name.",
+        "codeSnippet": "<head>\n  <title>Primary Keyword - Brand Name</title>\n</head>",
+        "effort": "trivial",
+        "automated": true
+      },
+      "impact": {
+        "seo": "critical",
+        "agent": "blocking",
+        "performance": "none",
+        "conversion": "indirect-loss"
+      },
+      "examples": [
+        {
+          "case": "Valid title length",
+          "input": "<title>Backend Engineer Portfolio - Xia</title>",
+          "expected": "pass"
+        },
+        {
+          "case": "Title too short",
+          "input": "<title>Home</title>",
+          "expected": "fail"
+        }
+      ]
+    },
+    "SEO-03": {
+      "id": "SEO-03",
+      "name": "Meta Description Presence",
+      "description": "Each page should have a meta description between 120 and 160 characters. While not a ranking factor, it controls search snippet text and agent summary context.",
+      "category": "seo",
+      "priority": "P1",
+      "check": {
+        "type": "selector",
+        "selector": "meta[name='description']",
+        "attribute": "content",
+        "scope": "page",
+        "threshold": { "min": 120, "max": 160 }
+      },
+      "fix": {
+        "instruction": "Add a meta description summarizing the page content in 120-160 characters.",
+        "codeSnippet": "<meta name=\"description\" content=\"This page covers backend engineering with NestJS, PostgreSQL, and scalable API design for high-traffic systems.\">",
+        "effort": "easy",
+        "automated": true
+      },
+      "impact": {
+        "seo": "high",
+        "agent": "degraded",
+        "performance": "none",
+        "conversion": "friction"
+      },
+      "examples": [
+        {
+          "case": "Valid description",
+          "input": "<meta name=\"description\" content=\"A comprehensive guide to building scalable backends with NestJS and PostgreSQL for modern applications.\">",
+          "expected": "pass"
+        },
+        {
+          "case": "Description too short",
+          "input": "<meta name=\"description\" content=\"Backend guide\">",
+          "expected": "fail"
+        }
+      ]
+    },
+    "SEO-04": {
+      "id": "SEO-04",
+      "name": "Canonical Link Tag",
+      "description": "Each page should have a canonical URL to prevent duplicate content issues. AI agents use canonicals to identify the authoritative version of content.",
+      "category": "seo",
+      "priority": "P1",
+      "check": {
+        "type": "selector",
+        "selector": "link[rel='canonical']",
+        "attribute": "href",
+        "scope": "page",
+        "threshold": { "min": 10 }
+      },
+      "fix": {
+        "instruction": "Add a canonical link tag pointing to the preferred version of this URL.",
+        "codeSnippet": "<link rel=\"canonical\" href=\"https://example.com/this-page/\" />",
+        "effort": "trivial",
+        "automated": true
+      },
+      "impact": {
+        "seo": "high",
+        "agent": "degraded",
+        "performance": "none",
+        "conversion": "none"
+      },
+      "examples": [
+        {
+          "case": "Canonical present",
+          "input": "<link rel=\"canonical\" href=\"https://site.com/about\">",
+          "expected": "pass"
+        },
+        {
+          "case": "Missing canonical",
+          "input": "<head><title>About</title></head>",
+          "expected": "fail"
+        }
+      ]
+    },
+    "AG-01": {
+      "id": "AG-01",
+      "name": "HTML Lang Attribute",
+      "description": "The <html> tag must have a lang attribute. AI agents use this to determine language for summarization, translation, and content processing. Missing lang causes agent misinterpretation.",
+      "category": "agent",
+      "priority": "P1",
+      "check": {
+        "type": "selector",
+        "selector": "html",
+        "attribute": "lang",
+        "scope": "page",
+        "threshold": { "min": 2 }
+      },
+      "fix": {
+        "instruction": "Add lang attribute to the <html> tag using ISO 639-1 language code.",
+        "codeSnippet": "<html lang=\"en\">\n<!-- or lang=\"bn\" for Bangla, lang=\"zh\" for Chinese -->",
+        "effort": "trivial",
+        "automated": true
+      },
+      "impact": {
+        "seo": "moderate",
+        "agent": "degraded",
+        "performance": "none",
+        "conversion": "none"
+      },
+      "examples": [
+        {
+          "case": "Valid lang attribute",
+          "input": "<html lang=\"en\">",
+          "expected": "pass"
+        },
+        {
+          "case": "Missing lang",
+          "input": "<html>",
+          "expected": "fail"
+        }
+      ]
+    },
+    "OG-01": {
+      "id": "OG-01",
+      "name": "Open Graph Title",
+      "description": "og:title gives AI agents and social scrapers the canonical page title for cards and summaries. Missing it falls back to <title>, which may be truncated or wrong in agent context.",
+      "category": "agent",
+      "priority": "P1",
+      "check": {
+        "type": "selector",
+        "selector": "meta[property='og:title']",
+        "attribute": "content",
+        "scope": "page",
+        "threshold": { "min": 5 }
+      },
+      "fix": {
+        "instruction": "Add an og:title meta tag with the page's share title (40-60 chars).",
+        "codeSnippet": "<meta property=\"og:title\" content=\"Product Name - Brand\">",
+        "effort": "trivial",
+        "automated": true
+      },
+      "impact": {
+        "seo": "moderate",
+        "agent": "degraded",
+        "performance": "none",
+        "conversion": "friction"
+      }
+    },
+    "OG-02": {
+      "id": "OG-02",
+      "name": "Open Graph Description",
+      "description": "og:description supplies the summary text agents and social cards use. Without it, agents infer from page body, often producing weak or off-topic summaries.",
+      "category": "agent",
+      "priority": "P1",
+      "check": {
+        "type": "selector",
+        "selector": "meta[property='og:description']",
+        "attribute": "content",
+        "scope": "page",
+        "threshold": { "min": 20 }
+      },
+      "fix": {
+        "instruction": "Add an og:description meta tag (120-200 chars) summarizing the page.",
+        "codeSnippet": "<meta property=\"og:description\" content=\"Shop the durable, eco-friendly Widget with free shipping and a 2-year warranty.\">",
+        "effort": "easy",
+        "automated": true
+      },
+      "impact": {
+        "seo": "moderate",
+        "agent": "degraded",
+        "performance": "none",
+        "conversion": "friction"
+      }
+    },
+    "OG-03": {
+      "id": "OG-03",
+      "name": "Open Graph Image",
+      "description": "og:image is the visual agents and social platforms pull for cards. Missing it means no visual signal in agent summaries and zero share-preview CTR.",
+      "category": "agent",
+      "priority": "P1",
+      "check": {
+        "type": "selector",
+        "selector": "meta[property='og:image']",
+        "attribute": "content",
+        "scope": "page",
+        "threshold": { "min": 8 }
+      },
+      "fix": {
+        "instruction": "Add an og:image meta tag pointing to a 1200x630 (or larger) share image URL.",
+        "codeSnippet": "<meta property=\"og:image\" content=\"https://example.com/img/product-1200x630.jpg\">",
+        "effort": "trivial",
+        "automated": true
+      },
+      "impact": {
+        "seo": "high",
+        "agent": "degraded",
+        "performance": "none",
+        "conversion": "indirect-loss"
+      }
+    },
+    "OG-04": {
+      "id": "OG-04",
+      "name": "Open Graph Type",
+      "description": "og:type tells agents the semantic nature of the page (product, article, website). Agents use it to route the page into the correct understanding/extraction path.",
+      "category": "agent",
+      "priority": "P2",
+      "check": {
+        "type": "selector",
+        "selector": "meta[property='og:type']",
+        "attribute": "content",
+        "scope": "page",
+        "threshold": { "min": 3 }
+      },
+      "fix": {
+        "instruction": "Add an og:type meta tag (e.g. 'product', 'article', 'website').",
+        "codeSnippet": "<meta property=\"og:type\" content=\"product\">",
+        "effort": "trivial",
+        "automated": true
+      },
+      "impact": {
+        "seo": "low",
+        "agent": "minor",
+        "performance": "none",
+        "conversion": "none"
+      }
+    },
+    "JSONLD-01": {
+      "id": "JSONLD-01",
+      "name": "JSON-LD Structured Data Present",
+      "description": "Structured data (schema.org JSON-LD) is the primary signal AI agents (ChatGPT, Perplexity, Gemini, Claude) read to extract facts, products, and entities. A page with no JSON-LD is nearly invisible to agentic retrieval.",
+      "category": "agent",
+      "priority": "P1",
+      "check": {
+        "type": "selector",
+        "selector": "script[type='application/ld+json']",
+        "scope": "page",
+        "threshold": { "min": 1, "max": 10 }
+      },
+      "fix": {
+        "instruction": "Add a <script type=\"application/ld+json\"> block with schema.org markup describing the page entity.",
+        "codeSnippet": "<script type=\"application/ld+json\">\n{\n  \"@context\": \"https://schema.org\",\n  \"@type\": \"WebSite\",\n  \"name\": \"Example\"\n}\n</script>",
+        "effort": "moderate",
+        "automated": false
+      },
+      "impact": {
+        "seo": "high",
+        "agent": "blocking",
+        "performance": "none",
+        "conversion": "indirect-loss"
+      }
+    },
+    "JSONLD-03": {
+      "id": "JSONLD-03",
+      "name": "Organization Schema Validity",
+      "description": "Organization schema tells agents who publishes the site, enabling entity linking and brand mentions in agent answers. name and logo are the minimum agents use.",
+      "category": "agent",
+      "priority": "P2",
+      "check": {
+        "type": "jsonld",
+        "jsonldType": "Organization",
+        "requireContextSchemaOrg": true,
+        "requiredFields": ["name", "logo"],
+        "fieldTypes": { "name": "string", "logo": "url" },
+        "scope": "root"
+      },
+      "fix": {
+        "instruction": "Add Organization JSON-LD with name (string) and logo (absolute URL).",
+        "codeSnippet": "{\n  \"@context\": \"https://schema.org\",\n  \"@type\": \"Organization\",\n  \"name\": \"Acme Inc\",\n  \"logo\": \"https://example.com/logo.png\"\n}",
+        "effort": "easy",
+        "automated": false
+      },
+      "impact": {
+        "seo": "moderate",
+        "agent": "degraded",
+        "performance": "none",
+        "conversion": "none"
+      }
+    },
+    "AXS-01": {
+      "id": "AXS-01",
+      "name": "Images Must Have Alt Attribute",
+      "description": "Images without alt text are invisible to screen readers AND to AI agents that parse the accessibility tree. Agents use alt text to understand visual content; screen-reader users hear nothing.",
+      "category": "accessibility",
+      "priority": "P1",
+      "check": {
+        "type": "selector",
+        "selector": "img:not([alt])",
+        "scope": "page",
+        "threshold": { "equals": 0 }
+      },
+      "fix": {
+        "instruction": "Add an alt attribute to every <img>. Describe meaningful images; use alt=\"\" (empty) for purely decorative images so assistive tech skips them.",
+        "codeSnippet": "<img src=\"chart.png\" alt=\"Q4 revenue grew 18% year over year\">\n<img src=\"blob.svg\" alt=\"\"> <!-- decorative -->",
+        "effort": "trivial",
+        "automated": true
+      },
+      "impact": {
+        "seo": "moderate",
+        "agent": "degraded",
+        "performance": "none",
+        "conversion": "none"
+      }
+    },
+    "AXS-02": {
+      "id": "AXS-02",
+      "name": "Form Controls Have Accessible Names",
+      "description": "Inputs, selects, and textareas need a programmatic name: an associated <label for>, aria-label, aria-labelledby, or title. Without one, screen readers announce 'blank edit text' and AI agents cannot map fields when filling forms.",
+      "category": "accessibility",
+      "priority": "P1",
+      "check": {
+        "type": "pairing",
+        "selector": "input:not([type=hidden]):not([type=submit]):not([type=button]):not([type=reset]):not([aria-label]):not([aria-labelledby]):not([title]), select:not([aria-label]):not([aria-labelledby]):not([title]), textarea:not([aria-label]):not([aria-labelledby]):not([title])",
+        "attribute": "id",
+        "requireAnyOf": ["label[for='{value}']"],
+        "scope": "page"
+      },
+      "fix": {
+        "instruction": "Give each form control an id and an associated <label for> matching it — or an aria-label if a visible label is impractical.",
+        "codeSnippet": "<label for=\"email\">Email</label>\n<input type=\"email\" id=\"email\" name=\"email\">\n<input type=\"search\" aria-label=\"Search products\">",
+        "effort": "easy",
+        "automated": true
+      },
+      "impact": {
+        "seo": "none",
+        "agent": "degraded",
+        "performance": "none",
+        "conversion": "friction"
+      }
+    },
+    "AXS-03": {
+      "id": "AXS-03",
+      "name": "Label For References Existing Elements",
+      "description": "A <label for> pointing at a nonexistent id associates no control: the label is dead, the field stays unnamed. Broken pairs are common after refactors and block both assistive tech and agent form-filling.",
+      "category": "accessibility",
+      "priority": "P2",
+      "check": {
+        "type": "pairing",
+        "selector": "label[for]",
+        "attribute": "for",
+        "requireSelector": "[id='{value}']",
+        "scope": "page"
+      },
+      "fix": {
+        "instruction": "Either update label's for attribute to an existing id, or wrap the control inside the label and drop the for attribute.",
+        "codeSnippet": "<label for=\"email\">Email</label>\n<input type=\"email\" id=\"email\"> <!-- ids must match -->",
+        "effort": "trivial",
+        "automated": true
+      },
+      "impact": {
+        "seo": "none",
+        "agent": "degraded",
+        "performance": "none",
+        "conversion": "friction"
+      }
+    },
+    "AXS-04": {
+      "id": "AXS-04",
+      "name": "aria-labelledby References Exist",
+      "description": "aria-labelledby contains space-separated id tokens; every token must resolve to an element. Dangling ids leave the accessible name broken — screen readers announce nothing and agents lose the label.",
+      "category": "accessibility",
+      "priority": "P2",
+      "check": {
+        "type": "pairing",
+        "selector": "[aria-labelledby]",
+        "attribute": "aria-labelledby",
+        "requireSelector": "[id='{value}']",
+        "tokenize": true,
+        "scope": "page"
+      },
+      "fix": {
+        "instruction": "Point every aria-labelledby token at an id that exists on the page, or remove the attribute.",
+        "codeSnippet": "<button aria-labelledby=\"save-label\"></button>\n<span id=\"save-label\">Save changes</span>",
+        "effort": "trivial",
+        "automated": true
+      },
+      "impact": {
+        "seo": "none",
+        "agent": "degraded",
+        "performance": "none",
+        "conversion": "none"
+      }
+    },
+    "AXS-05": {
+      "id": "AXS-05",
+      "name": "aria-describedby References Exist",
+      "description": "aria-describedby points at helper text by id. A dangling reference erases the description from the accessibility tree, hiding validation hints and instructions from both screen readers and agents.",
+      "category": "accessibility",
+      "priority": "P3",
+      "check": {
+        "type": "pairing",
+        "selector": "[aria-describedby]",
+        "attribute": "aria-describedby",
+        "requireSelector": "[id='{value}']",
+        "tokenize": true,
+        "scope": "page"
+      },
+      "fix": {
+        "instruction": "Point every aria-describedby token at an id that exists on the page, or remove the attribute.",
+        "codeSnippet": "<input aria-describedby=\"pw-hint\">\n<span id=\"pw-hint\">At least 12 characters</span>",
+        "effort": "trivial",
+        "automated": true
+      },
+      "impact": {
+        "seo": "none",
+        "agent": "minor",
+        "performance": "none",
+        "conversion": "none"
+      }
+    },
+    "AXS-06": {
+      "id": "AXS-06",
+      "name": "No Positive Tabindex",
+      "description": "tabindex values above 0 force a custom focus order that breaks keyboard and agent navigation predictably. Use 0 (natural order) or -1 (programmatically focusable only).",
+      "category": "accessibility",
+      "priority": "P1",
+      "check": {
+        "type": "selector",
+        "selector": "[tabindex]:not([tabindex=\"0\"]):not([tabindex=\"-1\"])",
+        "scope": "page",
+        "threshold": { "equals": 0 }
+      },
+      "fix": {
+        "instruction": "Replace positive tabindex values with 0 (or -1 when the element should only be focused via script). Reorder the DOM if focus order must change.",
+        "codeSnippet": "<div tabindex=\"0\">   <!-- wrong -->\n<div tabindex=\"-1\">  <!-- ok, JS-focusable -->\n<button>              <!-- ok, natural order -->",
+        "effort": "moderate",
+        "automated": false
+      },
+      "impact": {
+        "seo": "none",
+        "agent": "degraded",
+        "performance": "none",
+        "conversion": "friction"
+      }
+    },
+    "AXS-07": {
+      "id": "AXS-07",
+      "name": "No Duplicate IDs",
+      "description": "Duplicate id values make every id reference ambiguous: label[for], aria-labelledby, aria-describedby, and CSS/JS selectors resolve to the FIRST match only. Agents and assistive tech silently target the wrong element.",
+      "category": "accessibility",
+      "priority": "P1",
+      "check": {
+        "type": "unique",
+        "selector": "[id]",
+        "attribute": "id",
+        "scope": "page"
+      },
+      "fix": {
+        "instruction": "Make every id unique. Search the reported values and rename repeats; update any label[for]/aria-* references that pointed at the old id.",
+        "codeSnippet": "<div id=\"item-1\">...</div>\n<div id=\"item-2\">...</div> <!-- never id=\"item\" twice -->",
+        "effort": "moderate",
+        "automated": false
+      },
+      "impact": {
+        "seo": "none",
+        "agent": "degraded",
+        "performance": "none",
+        "conversion": "friction"
+      }
+    },
+    "AXS-08": {
+      "id": "AXS-08",
+      "name": "Heading Hierarchy Has No Skips",
+      "description": "Headings form the document outline agents use to segment content. Skipping levels (h2 followed by h4) breaks the outline for screen-reader navigation and weakens agent summarization structure.",
+      "category": "accessibility",
+      "priority": "P2",
+      "check": {
+        "type": "sequence",
+        "selector": "h1,h2,h3,h4,h5,h6",
+        "sequenceRule": "no-skip",
+        "scope": "page"
+      },
+      "fix": {
+        "instruction": "Increase heading levels by one at a time (h2 → h3, never h2 → h4). Use CSS to control visual size, not the heading tag choice.",
+        "codeSnippet": "<h2>Section</h2>\n  <h3>Subsection</h3>\n    <h4>Detail</h4>",
+        "effort": "easy",
+        "automated": false
+      },
+      "impact": {
+        "seo": "moderate",
+        "agent": "degraded",
+        "performance": "none",
+        "conversion": "none"
+      }
+    },
+    "AXS-09": {
+      "id": "AXS-09",
+      "name": "Skip Navigation Link",
+      "description": "A skip link lets keyboard and agent users jump past repeated navigation to the main content. Without it, every page forces re-traversing the full nav before reaching content.",
+      "category": "accessibility",
+      "priority": "P3",
+      "check": {
+        "type": "selector",
+        "selector": "a[href=\"#main\"], a[href=\"#content\"], a[href=\"#main-content\"], a[href=\"#maincontent\"], a[href=\"#primary\"]",
+        "scope": "page",
+        "threshold": { "min": 1 }
+      },
+      "fix": {
+        "instruction": "Add a skip link as the first focusable element in <body> pointing at your main content container id.",
+        "codeSnippet": "<body>\n  <a class=\"skip-link\" href=\"#main\">Skip to main content</a>\n  <nav>...</nav>\n  <main id=\"main\">...",
+        "effort": "easy",
+        "automated": true
+      },
+      "impact": {
+        "seo": "none",
+        "agent": "minor",
+        "performance": "none",
+        "conversion": "none"
+      }
+    },
+    "AXS-10": {
+      "id": "AXS-10",
+      "name": "Main Landmark Present",
+      "description": "A <main> landmark (or role=\"main\") marks the primary content region. Screen readers offer landmark jumps to it, and agents use it to separate content from chrome when extracting page text.",
+      "category": "accessibility",
+      "priority": "P2",
+      "check": {
+        "type": "selector",
+        "selector": "main, [role=\"main\"]",
+        "scope": "page",
+        "threshold": { "min": 1 }
+      },
+      "fix": {
+        "instruction": "Wrap the page's primary content in a single <main id=\"main\"> element (pair it with the skip link).",
+        "codeSnippet": "<main id=\"main\">\n  <h1>Page title</h1>\n  ...\n</main>",
+        "effort": "easy",
+        "automated": true
+      },
+      "impact": {
+        "seo": "moderate",
+        "agent": "degraded",
+        "performance": "none",
+        "conversion": "none"
+      }
+    },
+    "AXS-11": {
+      "id": "AXS-11",
+      "name": "Navigation Landmark Present",
+      "description": "A <nav> landmark (or role=\"navigation\") labels the site's link clusters. Assistive tech lists it as a jump target and agents distinguish navigation links from content links by it.",
+      "category": "accessibility",
+      "priority": "P3",
+      "check": {
+        "type": "selector",
+        "selector": "nav, [role=\"navigation\"]",
+        "scope": "page",
+        "threshold": { "min": 1 }
+      },
+      "fix": {
+        "instruction": "Wrap primary link clusters in <nav>. If multiple navs exist, label them with aria-label.",
+        "codeSnippet": "<nav aria-label=\"Primary\">\n  <a href=\"/\">Home</a> <a href=\"/docs\">Docs</a>\n</nav>",
+        "effort": "trivial",
+        "automated": true
+      },
+      "impact": {
+        "seo": "low",
+        "agent": "minor",
+        "performance": "none",
+        "conversion": "none"
+      }
+    },
+    "AXS-12": {
+      "id": "AXS-12",
+      "name": "Links Have A Name",
+      "description": "Empty links with no aria-label, aria-labelledby, or title announce as nothing in screen readers and give agents an anchor with no semantic identity. Every link must expose a discernible name.",
+      "category": "accessibility",
+      "priority": "P1",
+      "check": {
+        "type": "selector",
+        "selector": "a:empty:not([aria-label]):not([aria-labelledby]):not([title])",
+        "scope": "page",
+        "threshold": { "equals": 0 }
+      },
+      "fix": {
+        "instruction": "Give empty links visible text, an aria-label, or (for icon links) an accessible name via aria-label.",
+        "codeSnippet": "<a href=\"/cart\" aria-label=\"Shopping cart\">...</a>\n<!-- or with visible text -->\n<a href=\"/cart\">Cart (3)</a>",
+        "effort": "trivial",
+        "automated": true
+      },
+      "impact": {
+        "seo": "none",
+        "agent": "degraded",
+        "performance": "none",
+        "conversion": "friction"
+      }
+    },
+    "AXS-13": {
+      "id": "AXS-13",
+      "name": "Buttons Have A Name",
+      "description": "Empty buttons with no accessible name announce as 'button' with no purpose. Screen-reader users and agent parsers cannot tell what activating the control does.",
+      "category": "accessibility",
+      "priority": "P1",
+      "check": {
+        "type": "selector",
+        "selector": "button:empty:not([aria-label]):not([aria-labelledby]):not([title])",
+        "scope": "page",
+        "threshold": { "equals": 0 }
+      },
+      "fix": {
+        "instruction": "Put text inside the button, or add aria-label describing the action (required for icon-only buttons).",
+        "codeSnippet": "<button aria-label=\"Close dialog\">×</button>\n<button>Save changes</button>",
+        "effort": "trivial",
+        "automated": true
+      },
+      "impact": {
+        "seo": "none",
+        "agent": "degraded",
+        "performance": "none",
+        "conversion": "friction"
+      }
+    },
+    "AXS-14": {
+      "id": "AXS-14",
+      "name": "Iframes Have Title",
+      "description": "An iframe without a title attribute gives no indication of its content. Screen readers announce 'frame' with nothing else; agents cannot classify embedded content (maps, videos, widgets).",
+      "category": "accessibility",
+      "priority": "P2",
+      "check": {
+        "type": "selector",
+        "selector": "iframe:not([title])",
+        "scope": "page",
+        "threshold": { "equals": 0 }
+      },
+      "fix": {
+        "instruction": "Add a descriptive title attribute to every iframe describing what it embeds.",
+        "codeSnippet": "<iframe src=\"/embed/map\" title=\"Store location map\"></iframe>",
+        "effort": "trivial",
+        "automated": true
+      },
+      "impact": {
+        "seo": "none",
+        "agent": "minor",
+        "performance": "none",
+        "conversion": "none"
+      }
+    },
+    "AXS-15": {
+      "id": "AXS-15",
+      "name": "Valid Lang Format",
+      "description": "The lang attribute must be a well-formed BCP 47 / ISO 639 tag (en, en-US, zh-Hans-CN). Malformed values make text-to-speech pick wrong pronunciation and agents misroute translation.",
+      "category": "accessibility",
+      "priority": "P3",
+      "check": {
+        "type": "selector",
+        "selector": "html[lang]",
+        "scope": "page",
+        "each": {
+          "attribute": "lang",
+          "pattern": "^[A-Za-z]{2,8}(-[A-Za-z0-9]{2,8})*$"
+        }
+      },
+      "fix": {
+        "instruction": "Use a valid language tag: 2-3 letter language code, optionally followed by region/script subtags (en, en-US, pt-BR, zh-Hans-CN).",
+        "codeSnippet": "<html lang=\"en-US\">",
+        "effort": "trivial",
+        "automated": true
+      },
+      "impact": {
+        "seo": "low",
+        "agent": "minor",
+        "performance": "none",
+        "conversion": "none"
+      }
+    },
+    "AXS-16": {
+      "id": "AXS-16",
+      "name": "No Focusable Content Inside aria-hidden",
+      "description": "aria-hidden=\"true\" hides content from assistive tech, but focusable descendants remain tabbable — keyboard users land on invisible elements. Agents reading the accessibility tree and the DOM disagree about what exists.",
+      "category": "accessibility",
+      "priority": "P2",
+      "check": {
+        "type": "selector",
+        "selector": "[aria-hidden=\"true\"] a[href]:not([tabindex=\"-1\"]), [aria-hidden=\"true\"] button:not([tabindex=\"-1\"]), [aria-hidden=\"true\"] input:not([tabindex=\"-1\"]), [aria-hidden=\"true\"] select:not([tabindex=\"-1\"]), [aria-hidden=\"true\"] textarea:not([tabindex=\"-1\"]), [aria-hidden=\"true\"] [tabindex]:not([tabindex=\"-1\"])",
+        "scope": "page",
+        "threshold": { "equals": 0 }
+      },
+      "fix": {
+        "instruction": "Either remove aria-hidden from containers holding interactive elements, or make those elements unfocusable (tabindex=\"-1\") and remove them from the tab order.",
+        "codeSnippet": "<div aria-hidden=\"true\">\n  <a href=\"/x\" tabindex=\"-1\">decorative link</a>\n</div>",
+        "effort": "moderate",
+        "automated": false
+      },
+      "impact": {
+        "seo": "none",
+        "agent": "minor",
+        "performance": "none",
+        "conversion": "none"
+      }
+    },
+    "AXS-17": {
+      "id": "AXS-17",
+      "name": "Valid ARIA Role Values",
+      "description": "role attributes must use tokens from the WAI-ARIA specification. A typo (rol=\"buton\", custom roles) makes the element fall back to its native semantics — assistive tech and agents misclassify the control.",
+      "category": "accessibility",
+      "priority": "P2",
+      "check": {
+        "type": "selector",
+        "selector": "[role]",
+        "scope": "page",
+        "each": {
+          "attribute": "role",
+          "allowedValues": [
+            "alert",
+            "alertdialog",
+            "application",
+            "article",
+            "banner",
+            "blockquote",
+            "button",
+            "caption",
+            "cell",
+            "checkbox",
+            "code",
+            "columnheader",
+            "combobox",
+            "complementary",
+            "contentinfo",
+            "definition",
+            "deletion",
+            "dialog",
+            "directory",
+            "document",
+            "emphasis",
+            "feed",
+            "figure",
+            "form",
+            "generic",
+            "grid",
+            "gridcell",
+            "group",
+            "heading",
+            "img",
+            "insertion",
+            "link",
+            "list",
+            "listbox",
+            "listitem",
+            "log",
+            "main",
+            "marquee",
+            "math",
+            "menu",
+            "menubar",
+            "menuitem",
+            "menuitemcheckbox",
+            "menuitemradio",
+            "meter",
+            "navigation",
+            "none",
+            "note",
+            "option",
+            "paragraph",
+            "presentation",
+            "progressbar",
+            "radio",
+            "radiogroup",
+            "region",
+            "row",
+            "rowgroup",
+            "rowheader",
+            "scrollbar",
+            "search",
+            "searchbox",
+            "separator",
+            "slider",
+            "spinbutton",
+            "status",
+            "strikethrough",
+            "strong",
+            "subscript",
+            "superscript",
+            "switch",
+            "tab",
+            "table",
+            "tablist",
+            "term",
+            "textbox",
+            "time",
+            "timer",
+            "toolbar",
+            "tooltip",
+            "tree",
+            "treegrid",
+            "treeitem"
+          ]
+        }
+      },
+      "fix": {
+        "instruction": "Replace invalid role values with a token from the WAI-ARIA roles list — or remove the role and use the correct native element (e.g. <button> instead of <div role=\"button\">).",
+        "codeSnippet": "<div role=\"button\">   <!-- typo: role=\"buton\" breaks it -->\n<button>              <!-- preferred -->",
+        "effort": "trivial",
+        "automated": true
+      },
+      "impact": {
+        "seo": "none",
+        "agent": "degraded",
+        "performance": "none",
+        "conversion": "none"
+      }
+    },
+    "AXS-18": {
+      "id": "AXS-18",
+      "name": "Viewport Must Not Disable Zoom",
+      "description": "user-scalable=no or maximum-scale=1 blocks pinch-zoom for low-vision users (WCAG 1.4.4 violation). Agents previewing mobile layouts treat forced zoom limits as a usability defect signal.",
+      "category": "accessibility",
+      "priority": "P2",
+      "check": {
+        "type": "regex",
+        "pattern": "user-scalable\\s*=\\s*no|maximum-scale\\s*=\\s*1(?:\\.0)?\\b",
+        "target": "html",
+        "threshold": { "equals": false }
+      },
+      "fix": {
+        "instruction": "Remove user-scalable=no and maximum-scale=1 from the viewport meta tag.",
+        "codeSnippet": "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">",
+        "effort": "trivial",
+        "automated": true
+      },
+      "impact": {
+        "seo": "low",
+        "agent": "none",
+        "performance": "none",
+        "conversion": "friction"
+      }
+    },
+    "AG-02": {
+      "id": "AG-02",
+      "name": "Clickable Components Expose Stable Hooks",
+      "description": "AI agents locate controls by stable selectors: id, name, or aria-label. Buttons and clickable inputs with none of these are addressable only by exact text, which breaks when copy changes or is localized.",
+      "category": "agent",
+      "priority": "P2",
+      "check": {
+        "type": "selector",
+        "selector": "button:not([id]):not([aria-label]):not([name]):not([title]), [role=\"button\"]:not([id]):not([aria-label]):not([title]), input[type=\"submit\"]:not([id]):not([name]):not([aria-label]), input[type=\"button\"]:not([id]):not([name]):not([aria-label])",
+        "scope": "page",
+        "threshold": { "equals": 0 }
+      },
+      "fix": {
+        "instruction": "Give every clickable component a stable hook: an id (preferred), name, or aria-label. Agents and test automation then target it without depending on display text.",
+        "codeSnippet": "<button id=\"checkout-submit\" name=\"checkout\">Checkout</button>\n<input type=\"submit\" id=\"search-go\" value=\"Search\">",
+        "effort": "easy",
+        "automated": true
+      },
+      "impact": {
+        "seo": "none",
+        "agent": "degraded",
+        "performance": "none",
+        "conversion": "friction"
+      }
+    },
+    "AG-03": {
+      "id": "AG-03",
+      "name": "llms.txt Present",
+      "description": "llms.txt is the emerging standard for giving AI agents a curated, token-efficient guide to a site's content and endpoints. Missing it forces agents to crawl blindly and summarize raw HTML.",
+      "category": "agent",
+      "priority": "P2",
+      "check": {
+        "type": "fetch",
+        "url": "{{baseUrl}}/llms.txt",
+        "threshold": { "statusCode": 200 }
+      },
+      "fix": {
+        "instruction": "Publish an /llms.txt file at the site root: markdown with links to key pages, APIs, and docs, preceded by a one-line summary of the site.",
+        "codeSnippet": "# Example Corp\n\n> Example Corp builds developer tools for CI/CD pipelines.\n\n## Docs\n- [Getting started](https://example.com/docs/start): quickstart guide\n- [API reference](https://example.com/docs/api): REST endpoints",
+        "effort": "easy",
+        "automated": false
+      },
+      "impact": {
+        "seo": "moderate",
+        "agent": "degraded",
+        "performance": "none",
+        "conversion": "none"
+      }
+    },
+    "AG-04": {
+      "id": "AG-04",
+      "name": "robots.txt Present",
+      "description": "robots.txt is the first file every crawler — search and AI alike — requests. A 404 means agents get no crawl guidance and may either over-crawl or assume the site is unfriendly to bots.",
+      "category": "agent",
+      "priority": "P3",
+      "check": {
+        "type": "fetch",
+        "url": "{{baseUrl}}/robots.txt",
+        "threshold": { "statusCode": 200 }
+      },
+      "fix": {
+        "instruction": "Publish a /robots.txt allowing well-behaved crawlers and pointing to the sitemap.",
+        "codeSnippet": "User-agent: *\nAllow: /\n\nSitemap: https://example.com/sitemap.xml",
+        "effort": "trivial",
+        "automated": true
+      },
+      "impact": {
+        "seo": "high",
+        "agent": "minor",
+        "performance": "none",
+        "conversion": "none"
+      }
+    },
+    "AG-05": {
+      "id": "AG-05",
+      "name": "sitemap.xml Present",
+      "description": "The sitemap is how agents and search engines enumerate the site's URLs without crawling guesswork. Without it, deep pages may never be discovered by AI agents at all.",
+      "category": "agent",
+      "priority": "P2",
+      "check": {
+        "type": "fetch",
+        "url": "{{baseUrl}}/sitemap.xml",
+        "threshold": { "statusCode": 200 }
+      },
+      "fix": {
+        "instruction": "Publish a /sitemap.xml listing every important URL, and reference it from robots.txt.",
+        "codeSnippet": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n  <url><loc>https://example.com/</loc></url>\n</urlset>",
+        "effort": "easy",
+        "automated": true
+      },
+      "impact": {
+        "seo": "critical",
+        "agent": "degraded",
+        "performance": "none",
+        "conversion": "none"
+      }
+    },
+    "AG-06": {
+      "id": "AG-06",
+      "name": "No javascript: Links",
+      "description": "javascript: hrefs do nothing for non-executing clients. AI agents parsing raw HTML and users with scripting disabled get a dead link that pretends to navigate.",
+      "category": "agent",
+      "priority": "P1",
+      "check": {
+        "type": "selector",
+        "selector": "a[href^=\"javascript:\"]",
+        "scope": "page",
+        "threshold": { "equals": 0 }
+      },
+      "fix": {
+        "instruction": "Replace javascript: hrefs with real URLs where navigation is intended, or use a <button> with a click handler for in-page actions.",
+        "codeSnippet": "<a href=\"/settings\">Settings</a>          <!-- real navigation -->\n<button id=\"open-modal\">Open</button>   <!-- in-page action -->",
+        "effort": "easy",
+        "automated": false
+      },
+      "impact": {
+        "seo": "moderate",
+        "agent": "degraded",
+        "performance": "none",
+        "conversion": "friction"
+      }
+    },
+    "AG-07": {
+      "id": "AG-07",
+      "name": "No Dead Hash-Only Links",
+      "description": "href=\"#\" is a placeholder handled by JavaScript events. Agents following links and no-JS users get sent to the top of the page instead of the intended destination.",
+      "category": "agent",
+      "priority": "P2",
+      "check": {
+        "type": "selector",
+        "selector": "a[href=\"#\"]",
+        "scope": "page",
+        "threshold": { "equals": 0 }
+      },
+      "fix": {
+        "instruction": "Point placeholder links at their real destination. If the link only triggers JS, make it a <button> instead of an <a>.",
+        "codeSnippet": "<a href=\"/pricing\">Pricing</a>\n<button id=\"show-more\">Show more</button>",
+        "effort": "trivial",
+        "automated": true
+      },
+      "impact": {
+        "seo": "low",
+        "agent": "degraded",
+        "performance": "none",
+        "conversion": "friction"
+      }
+    },
+    "AG-08": {
+      "id": "AG-08",
+      "name": "Links Must Have href",
+      "description": "An <a> without href is not a link: it is excluded from the link graph agents crawl, announced without link semantics, and unreachable by keyboard.",
+      "category": "agent",
+      "priority": "P1",
+      "check": {
+        "type": "selector",
+        "selector": "a:not([href])",
+        "scope": "page",
+        "threshold": { "equals": 0 }
+      },
+      "fix": {
+        "instruction": "Add an href to every anchor, or replace it with a <button>/<span> if it is styled text rather than a link.",
+        "codeSnippet": "<a href=\"/docs\">Docs</a>",
+        "effort": "trivial",
+        "automated": true
+      },
+      "impact": {
+        "seo": "high",
+        "agent": "degraded",
+        "performance": "none",
+        "conversion": "friction"
+      }
+    },
+    "AG-09": {
+      "id": "AG-09",
+      "name": "Form Inputs Have name Attributes",
+      "description": "Form submission serializes fields by their name attribute. An input without name is silently dropped from the POST — agents and users can fill it, but the server never receives the value.",
+      "category": "agent",
+      "priority": "P2",
+      "check": {
+        "type": "selector",
+        "selector": "input:not([type=hidden]):not([name])",
+        "scope": "page",
+        "threshold": { "equals": 0 }
+      },
+      "fix": {
+        "instruction": "Add a name attribute to every form input so its value is included in submission.",
+        "codeSnippet": "<input type=\"email\" name=\"email\" id=\"email\">",
+        "effort": "trivial",
+        "automated": true
+      },
+      "impact": {
+        "seo": "none",
+        "agent": "blocking",
+        "performance": "none",
+        "conversion": "direct-loss"
+      }
+    },
+    "AG-10": {
+      "id": "AG-10",
+      "name": "WebSite JSON-LD Present",
+      "description": "WebSite schema identifies the site entity to AI assistants — its name and canonical URL anchor every answer that references the site. Missing it, agents describe the site from guesswork.",
+      "category": "agent",
+      "priority": "P2",
+      "check": {
+        "type": "jsonld",
+        "jsonldType": "WebSite",
+        "requireContextSchemaOrg": true,
+        "requiredFields": ["name", "url"],
+        "fieldTypes": { "name": "string", "url": "url" },
+        "scope": "root"
+      },
+      "fix": {
+        "instruction": "Add WebSite JSON-LD on the homepage with name (string) and url (absolute).",
+        "codeSnippet": "{\n  \"@context\": \"https://schema.org\",\n  \"@type\": \"WebSite\",\n  \"name\": \"Example\",\n  \"url\": \"https://example.com/\"\n}",
+        "effort": "easy",
+        "automated": false
+      },
+      "impact": {
+        "seo": "moderate",
+        "agent": "degraded",
+        "performance": "none",
+        "conversion": "none"
+      }
+    },
+    "AG-11": {
+      "id": "AG-11",
+      "name": "External Links Use rel noopener",
+      "description": "target=\"_blank\" without rel=\"noopener\" lets the opened page script-window.opener back into your origin — a tab-nabbing vector that security scanners and cautious agents flag.",
+      "category": "security",
+      "priority": "P2",
+      "check": {
+        "type": "selector",
+        "selector": "a[target=\"_blank\"]:not([rel*=\"noopener\"])",
+        "scope": "page",
+        "threshold": { "equals": 0 }
+      },
+      "fix": {
+        "instruction": "Add rel=\"noopener noreferrer\" to every target=\"_blank\" link.",
+        "codeSnippet": "<a href=\"https://other.com\" target=\"_blank\" rel=\"noopener noreferrer\">Partner</a>",
+        "effort": "trivial",
+        "automated": true
+      },
+      "impact": {
+        "seo": "low",
+        "agent": "none",
+        "performance": "none",
+        "conversion": "none"
+      }
+    },
+    "AG-12": {
+      "id": "AG-12",
+      "name": "No Semantic-less Click Handlers",
+      "description": "div/span with onclick but no role or tabindex are invisible to the accessibility tree: screen readers skip them and agents cannot classify them as controls. Use native interactive elements.",
+      "category": "structure",
+      "priority": "P2",
+      "check": {
+        "type": "selector",
+        "selector": "div[onclick]:not([role]):not([tabindex]), span[onclick]:not([role]):not([tabindex])",
+        "scope": "page",
+        "threshold": { "equals": 0 }
+      },
+      "fix": {
+        "instruction": "Replace div/span click handlers with <button> (or <a href> for navigation). If you must keep the element, add role and tabindex plus keyboard handlers.",
+        "codeSnippet": "<button id=\"toggle-sidebar\">Menu</button>\n<a href=\"/next\">Next page</a>",
+        "effort": "moderate",
+        "automated": false
+      },
+      "impact": {
+        "seo": "none",
+        "agent": "degraded",
+        "performance": "none",
+        "conversion": "friction"
+      }
+    }
+  }
+}

@@ -23,6 +23,9 @@ export type CheckType =
   | "composite"
   | "custom"
   | "jsonld"
+  | "unique"
+  | "pairing"
+  | "sequence"
 export type Effort = "trivial" | "easy" | "moderate" | "hard" | "complex"
 export type ImpactLevel = "critical" | "high" | "moderate" | "low" | "none"
 export type AgentImpact = "blocking" | "degraded" | "minor" | "none"
@@ -103,6 +106,27 @@ export type Check = {
     { min?: number; max?: number; exclusiveMin?: boolean }
   >
   arrayItemTypes?: Record<string, JsonLdFieldType> // validate every array element
+  // Per-element attribute validation (selector checks). Value = count of
+  // violating elements; default threshold equals 0.
+  each?: EachSpec
+  // Cross-element reference integrity ('pairing'). Value = count of broken
+  // references; default threshold equals 0.
+  requireSelector?: string // target selector, "{value}" = referrer's attr value
+  requireAnyOf?: string[] // any matching target passes
+  tokenize?: boolean // split attr on whitespace; every token must resolve
+  // Document-order checks ('sequence').
+  levelAttribute?: string // numeric attr to read levels from (else h1-h6/aria-level)
+  sequenceRule?: "no-skip" // level may drop freely, rise by at most 1
+}
+
+// Per-element assertion for selector checks: EVERY matched element's
+// attribute must satisfy these (allowed set / pattern from the rule pack —
+// the engine hardcodes no vocabularies).
+export type EachSpec = {
+  attribute: string
+  allowedValues?: string[]
+  pattern?: string // JS regex source tested against the attribute value
+  nonEmpty?: boolean // attribute must exist and be non-blank
 }
 
 export type JsonLdConditional = {

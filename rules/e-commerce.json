@@ -1,366 +1,25 @@
 {
   "$schema": "./schema.json",
   "metadata": {
-    "name": "Core Audit Rules",
-    "slug": "core-rules",
-    "description": "Basic SEO and agent-readiness checks for any website.",
-    "version": "1.0.0",
-    "category": "seo",
-    "tags": ["seo", "basics", "agent-ready"],
+    "name": "E-commerce Schema Add-on",
+    "slug": "e-commerce",
+    "description": "Commerce layer: Product, Offer, and BreadcrumbList JSON-LD validity. Load together with core: --rule=./rules/core.json,./rules/e-commerce.json",
+    "version": "1.1.0",
+    "category": "e-commerce",
+    "tags": ["e-commerce", "jsonld", "schema", "product"],
     "createdBy": {
       "name": "Xia",
       "email": "a4arpon@email.com",
       "url": "https://github.com/a4arpon"
     },
-    "updatedAt": "2026-07-19",
+    "updatedAt": "2026-10-08",
     "license": "MIT"
   },
   "rules": {
-    "SEO-01": {
-      "id": "SEO-01",
-      "name": "Single H1 Per Page",
-      "description": "Each page must have exactly one H1 tag. Multiple H1s confuse AI agents and search engines about the primary topic. Zero H1s make the page untitled for agents.",
-      "category": "seo",
-      "priority": "P0",
-      "check": {
-        "type": "selector",
-        "selector": "h1",
-        "scope": "page",
-        "threshold": {
-          "min": 1,
-          "max": 1
-        }
-      },
-      "fix": {
-        "instruction": "Ensure every page has exactly one <h1> tag describing the primary topic. If multiple H1s exist, downgrade extras to <h2>. If zero exist, add one at the top of <body>.",
-        "codeSnippet": "<h1>Primary Topic of This Page</h1>\n<!-- Only one h1 per page. Use h2-h6 for subsections. -->",
-        "effort": "easy",
-        "automated": true
-      },
-      "impact": {
-        "seo": "critical",
-        "agent": "blocking",
-        "performance": "none",
-        "conversion": "none"
-      },
-      "examples": [
-        {
-          "case": "Page with one h1",
-          "input": "<h1>About Us</h1><h2>Team</h2>",
-          "expected": "pass"
-        },
-        {
-          "case": "Page with two h1s",
-          "input": "<h1>About Us</h1><h1>Our Team</h1>",
-          "expected": "fail"
-        }
-      ]
-    },
-    "SEO-02": {
-      "id": "SEO-02",
-      "name": "Title Tag Presence and Length",
-      "description": "Every page must have a <title> tag between 30 and 60 characters. Missing titles make pages untitled in search results and agent context. Too long gets truncated.",
-      "category": "seo",
-      "priority": "P0",
-      "check": {
-        "type": "selector",
-        "selector": "title",
-        "scope": "page",
-        "threshold": {
-          "min": 30,
-          "max": 60
-        }
-      },
-      "fix": {
-        "instruction": "Add a <title> tag inside <head> with 30-60 characters. Include primary keyword and brand name.",
-        "codeSnippet": "<head>\n  <title>Primary Keyword - Brand Name</title>\n</head>",
-        "effort": "trivial",
-        "automated": true
-      },
-      "impact": {
-        "seo": "critical",
-        "agent": "blocking",
-        "performance": "none",
-        "conversion": "indirect-loss"
-      },
-      "examples": [
-        {
-          "case": "Valid title length",
-          "input": "<title>Backend Engineer Portfolio - Xia</title>",
-          "expected": "pass"
-        },
-        {
-          "case": "Title too short",
-          "input": "<title>Home</title>",
-          "expected": "fail"
-        }
-      ]
-    },
-    "AG-01": {
-      "id": "AG-01",
-      "name": "HTML Lang Attribute",
-      "description": "The <html> tag must have a lang attribute. AI agents use this to determine language for summarization, translation, and content processing. Missing lang causes agent misinterpretation.",
-      "category": "agent",
-      "priority": "P1",
-      "check": {
-        "type": "selector",
-        "selector": "html",
-        "attribute": "lang",
-        "scope": "page",
-        "threshold": {
-          "min": 2
-        }
-      },
-      "fix": {
-        "instruction": "Add lang attribute to the <html> tag using ISO 639-1 language code.",
-        "codeSnippet": "<html lang=\"en\">\n<!-- or lang=\"bn\" for Bangla, lang=\"zh\" for Chinese -->",
-        "effort": "trivial",
-        "automated": true
-      },
-      "impact": {
-        "seo": "moderate",
-        "agent": "degraded",
-        "performance": "none",
-        "conversion": "none"
-      },
-      "examples": [
-        {
-          "case": "Valid lang attribute",
-          "input": "<html lang=\"en\">",
-          "expected": "pass"
-        },
-        {
-          "case": "Missing lang",
-          "input": "<html>",
-          "expected": "fail"
-        }
-      ]
-    },
-    "SEO-03": {
-      "id": "SEO-03",
-      "name": "Meta Description Presence",
-      "description": "Each page should have a meta description between 120 and 160 characters. While not a ranking factor, it controls search snippet text and agent summary context.",
-      "category": "seo",
-      "priority": "P1",
-      "check": {
-        "type": "selector",
-        "selector": "meta[name='description']",
-        "attribute": "content",
-        "scope": "page",
-        "threshold": {
-          "min": 120,
-          "max": 160
-        }
-      },
-      "fix": {
-        "instruction": "Add a meta description summarizing the page content in 120-160 characters.",
-        "codeSnippet": "<meta name=\"description\" content=\"This page covers backend engineering with NestJS, PostgreSQL, and scalable API design for high-traffic systems.\">",
-        "effort": "easy",
-        "automated": true
-      },
-      "impact": {
-        "seo": "high",
-        "agent": "degraded",
-        "performance": "none",
-        "conversion": "friction"
-      },
-      "examples": [
-        {
-          "case": "Valid description",
-          "input": "<meta name=\"description\" content=\"A comprehensive guide to building scalable backends with NestJS and PostgreSQL for modern applications.\">",
-          "expected": "pass"
-        },
-        {
-          "case": "Description too short",
-          "input": "<meta name=\"description\" content=\"Backend guide\">",
-          "expected": "fail"
-        }
-      ]
-    },
-    "SEO-04": {
-      "id": "SEO-04",
-      "name": "Canonical Link Tag",
-      "description": "Each page should have a canonical URL to prevent duplicate content issues. AI agents use canonicals to identify the authoritative version of content.",
-      "category": "seo",
-      "priority": "P1",
-      "check": {
-        "type": "selector",
-        "selector": "link[rel='canonical']",
-        "attribute": "href",
-        "scope": "page",
-        "threshold": {
-          "min": 10
-        }
-      },
-      "fix": {
-        "instruction": "Add a canonical link tag pointing to the preferred version of this URL.",
-        "codeSnippet": "<link rel=\"canonical\" href=\"https://example.com/this-page/\" />",
-        "effort": "trivial",
-        "automated": true
-      },
-      "impact": {
-        "seo": "high",
-        "agent": "degraded",
-        "performance": "none",
-        "conversion": "none"
-      },
-      "examples": [
-        {
-          "case": "Canonical present",
-          "input": "<link rel=\"canonical\" href=\"https://site.com/about\">",
-          "expected": "pass"
-        },
-        {
-          "case": "Missing canonical",
-          "input": "<head><title>About</title></head>",
-          "expected": "fail"
-        }
-      ]
-    },
-    "OG-01": {
-      "id": "OG-01",
-      "name": "Open Graph Title",
-      "description": "og:title gives AI agents and social scrapers the canonical page title for cards and summaries. Missing it falls back to <title>, which may be truncated or wrong in agent context.",
-      "category": "agent",
-      "priority": "P1",
-      "check": {
-        "type": "selector",
-        "selector": "meta[property='og:title']",
-        "attribute": "content",
-        "scope": "page",
-        "threshold": {
-          "min": 5
-        }
-      },
-      "fix": {
-        "instruction": "Add an og:title meta tag with the page's share title (40-60 chars).",
-        "codeSnippet": "<meta property=\"og:title\" content=\"Product Name - Brand\">",
-        "effort": "trivial",
-        "automated": true
-      },
-      "impact": {
-        "seo": "moderate",
-        "agent": "degraded",
-        "performance": "none",
-        "conversion": "friction"
-      }
-    },
-    "OG-02": {
-      "id": "OG-02",
-      "name": "Open Graph Description",
-      "description": "og:description supplies the summary text agents and social cards use. Without it, agents infer from page body, often producing weak or off-topic summaries.",
-      "category": "agent",
-      "priority": "P1",
-      "check": {
-        "type": "selector",
-        "selector": "meta[property='og:description']",
-        "attribute": "content",
-        "scope": "page",
-        "threshold": {
-          "min": 20
-        }
-      },
-      "fix": {
-        "instruction": "Add an og:description meta tag (120-200 chars) summarizing the page.",
-        "codeSnippet": "<meta property=\"og:description\" content=\"Shop the durable, eco-friendly Widget with free shipping and a 2-year warranty.\">",
-        "effort": "easy",
-        "automated": true
-      },
-      "impact": {
-        "seo": "moderate",
-        "agent": "degraded",
-        "performance": "none",
-        "conversion": "friction"
-      }
-    },
-    "OG-03": {
-      "id": "OG-03",
-      "name": "Open Graph Image",
-      "description": "og:image is the visual agents and social platforms pull for cards. Missing it means no visual signal in agent summaries and zero share-preview CTR.",
-      "category": "agent",
-      "priority": "P1",
-      "check": {
-        "type": "selector",
-        "selector": "meta[property='og:image']",
-        "attribute": "content",
-        "scope": "page",
-        "threshold": {
-          "min": 8
-        }
-      },
-      "fix": {
-        "instruction": "Add an og:image meta tag pointing to a 1200x630 (or larger) share image URL.",
-        "codeSnippet": "<meta property=\"og:image\" content=\"https://example.com/img/product-1200x630.jpg\">",
-        "effort": "trivial",
-        "automated": true
-      },
-      "impact": {
-        "seo": "high",
-        "agent": "degraded",
-        "performance": "none",
-        "conversion": "indirect-loss"
-      }
-    },
-    "OG-04": {
-      "id": "OG-04",
-      "name": "Open Graph Type",
-      "description": "og:type tells agents the semantic nature of the page (product, article, website). Agents use it to route the page into the correct understanding/extraction path.",
-      "category": "agent",
-      "priority": "P2",
-      "check": {
-        "type": "selector",
-        "selector": "meta[property='og:type']",
-        "attribute": "content",
-        "scope": "page",
-        "threshold": {
-          "min": 3
-        }
-      },
-      "fix": {
-        "instruction": "Add an og:type meta tag (e.g. 'product', 'article', 'website').",
-        "codeSnippet": "<meta property=\"og:type\" content=\"product\">",
-        "effort": "trivial",
-        "automated": true
-      },
-      "impact": {
-        "seo": "low",
-        "agent": "minor",
-        "performance": "none",
-        "conversion": "none"
-      }
-    },
-    "JSONLD-01": {
-      "id": "JSONLD-01",
-      "name": "JSON-LD Structured Data Present",
-      "description": "Structured data (schema.org JSON-LD) is the primary signal AI agents (ChatGPT, Perplexity, Gemini, Claude) read to extract facts, products, and entities. A page with no JSON-LD is nearly invisible to agentic retrieval.",
-      "category": "agent",
-      "priority": "P1",
-      "check": {
-        "type": "selector",
-        "selector": "script[type='application/ld+json']",
-        "scope": "page",
-        "threshold": {
-          "min": 1,
-          "max": 10
-        }
-      },
-      "fix": {
-        "instruction": "Add a <script type=\"application/ld+json\"> block with schema.org markup describing the page entity.",
-        "codeSnippet": "<script type=\"application/ld+json\">\n{\n  \"@context\": \"https://schema.org\",\n  \"@type\": \"Product\",\n  \"name\": \"Widget\"\n}\n</script>",
-        "effort": "moderate",
-        "automated": false
-      },
-      "impact": {
-        "seo": "high",
-        "agent": "blocking",
-        "performance": "none",
-        "conversion": "indirect-loss"
-      }
-    },
     "JSONLD-02": {
       "id": "JSONLD-02",
       "name": "Product Schema Validity",
-      "description": "When a Product schema is present, agents expect name, image, and a populated offers.price. Missing or mistyped fields break product cards in agent answers and shopping integrations.",
+      "description": "When a Product schema is present, agents expect name, image, sku, and offers.price with priceCurrency. Missing or mistyped fields break product cards in agent answers and shopping integrations.",
       "category": "e-commerce",
       "priority": "P1",
       "check": {
@@ -374,10 +33,12 @@
           "offers.price": "number",
           "sku": "string"
         },
+        "requiredGroups": [["offers.price", "offers.priceCurrency"]],
+        "patterns": { "offers.priceCurrency": "^[A-Z]{3}$" },
         "scope": "page"
       },
       "fix": {
-        "instruction": "Ensure the Product JSON-LD includes name (string), image (absolute URL), offers.price (number), and sku (string). Set @context to https://schema.org.",
+        "instruction": "Ensure the Product JSON-LD includes name (string), sku (string), image (absolute URL), and offers with price (number) + priceCurrency (3-letter ISO code). Set @context to https://schema.org.",
         "codeSnippet": "{\n  \"@context\": \"https://schema.org\",\n  \"@type\": \"Product\",\n  \"name\": \"Widget\",\n  \"sku\": \"WGT-001\",\n  \"image\": \"https://example.com/img/widget.jpg\",\n  \"offers\": { \"@type\": \"Offer\", \"price\": 19.99, \"priceCurrency\": \"USD\" }\n}",
         "effort": "moderate",
         "automated": false
@@ -389,34 +50,71 @@
         "conversion": "direct-loss"
       }
     },
-    "JSONLD-03": {
-      "id": "JSONLD-03",
-      "name": "Organization Schema Validity",
-      "description": "Organization schema tells agents who publishes the site, enabling entity linking and brand mentions in agent answers. name and logo are the minimum agents use.",
-      "category": "agent",
-      "priority": "P2",
+    "JSONLD-04": {
+      "id": "JSONLD-04",
+      "name": "Offer Schema Validity",
+      "description": "Offer nodes drive price and availability display in agent answers. price must be a positive number, priceCurrency a 3-letter ISO code, and availability a schema.org URL — otherwise shopping agents drop the offer.",
+      "category": "e-commerce",
+      "priority": "P1",
       "check": {
         "type": "jsonld",
-        "jsonldType": "Organization",
+        "jsonldType": "Offer",
         "requireContextSchemaOrg": true,
-        "requiredFields": ["name", "logo"],
-        "fieldTypes": {
-          "name": "string",
-          "logo": "url"
+        "requiredFields": ["price", "priceCurrency"],
+        "fieldTypes": { "price": "number", "priceCurrency": "string" },
+        "patterns": { "priceCurrency": "^[A-Z]{3}$" },
+        "numericRange": { "price": { "min": 0, "exclusiveMin": true } },
+        "enumValues": {
+          "availability": [
+            "https://schema.org/InStock",
+            "https://schema.org/OutOfStock",
+            "https://schema.org/PreOrder",
+            "https://schema.org/Discontinued",
+            "InStock",
+            "OutOfStock",
+            "PreOrder",
+            "Discontinued"
+          ]
         },
-        "scope": "root"
+        "scope": "page"
       },
       "fix": {
-        "instruction": "Add Organization JSON-LD with name (string) and logo (absolute URL).",
-        "codeSnippet": "{\n  \"@context\": \"https://schema.org\",\n  \"@type\": \"Organization\",\n  \"name\": \"Acme Inc\",\n  \"logo\": \"https://example.com/logo.png\"\n}",
+        "instruction": "Every Offer needs price (number > 0), priceCurrency (uppercase 3-letter ISO, e.g. USD), and optionally availability as a schema.org URL.",
+        "codeSnippet": "\"offers\": {\n  \"@type\": \"Offer\",\n  \"price\": 19.99,\n  \"priceCurrency\": \"USD\",\n  \"availability\": \"https://schema.org/InStock\"\n}",
         "effort": "easy",
         "automated": false
       },
       "impact": {
-        "seo": "moderate",
+        "seo": "high",
+        "agent": "blocking",
+        "performance": "none",
+        "conversion": "direct-loss"
+      }
+    },
+    "JSONLD-05": {
+      "id": "JSONLD-05",
+      "name": "BreadcrumbList Schema Present",
+      "description": "BreadcrumbList lets agents and search engines reconstruct site hierarchy for the page — they render it as trail context in answers. Stores without it appear as flat, contextless product pages.",
+      "category": "e-commerce",
+      "priority": "P2",
+      "check": {
+        "type": "jsonld",
+        "jsonldType": "BreadcrumbList",
+        "requireContextSchemaOrg": true,
+        "requiredFields": ["itemListElement"],
+        "scope": "page"
+      },
+      "fix": {
+        "instruction": "Add BreadcrumbList JSON-LD mirroring the visible breadcrumb trail: name + position per item, with absolute item URLs.",
+        "codeSnippet": "{\n  \"@context\": \"https://schema.org\",\n  \"@type\": \"BreadcrumbList\",\n  \"itemListElement\": [\n    { \"@type\": \"ListItem\", \"position\": 1, \"name\": \"Home\", \"item\": \"https://example.com/\" },\n    { \"@type\": \"ListItem\", \"position\": 2, \"name\": \"Widgets\", \"item\": \"https://example.com/widgets\" }\n  ]\n}",
+        "effort": "moderate",
+        "automated": false
+      },
+      "impact": {
+        "seo": "high",
         "agent": "degraded",
         "performance": "none",
-        "conversion": "none"
+        "conversion": "friction"
       }
     }
   }

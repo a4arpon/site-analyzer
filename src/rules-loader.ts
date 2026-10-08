@@ -1,3 +1,4 @@
+import { warn } from "node:console"
 import { RuleT } from "#src/types.ts"
 
 // Loads a rule pack from a local path or a remote URL, parses JSON, and runs
@@ -19,6 +20,9 @@ const CHECK_TYPES = [
   "composite",
   "custom",
   "jsonld",
+  "unique",
+  "pairing",
+  "sequence",
 ]
 
 export async function loadRulePack(source: string): Promise<RuleT> {
@@ -35,6 +39,44 @@ export async function loadRulePack(source: string): Promise<RuleT> {
   }
   validatePack(pack, source)
   return pack as RuleT
+}
+
+// Load one or more packs from a comma-separated spec:
+//   loadRulePacks("./rules/core.json,./rules/e-commerce.json")
+// Packs merge into one: rules are unioned (LATER packs win on ID
+// collision), metadata comes from the first pack.
+export async function loadRulePacks(spec: string): Promise<RuleT> {
+  const sources = spec.split(",").map((s) => s.trim()).filter(Boolean)
+  if (sources.length === 0) {
+    throw new Error("--rule is empty")
+  }
+  const packs = await Promise.all(sources.map((s) => loadRulePack(s)))
+  if (packs.length === 1) return packs[0]
+  return mergeRulePacks(packs, sources)
+}
+
+export function mergeRulePacks(packs: RuleT[], sources: string[]): RuleT {
+  const merged: RuleT = {
+    $schema: packs[0].$schema,
+    metadata: { ...packs[0].metadata },
+    rules: {},
+  }
+  for (const [i, pack] of packs.entries()) {
+    for (const [id, rule] of Object.entries(pack.rules)) {
+      if (merged.rules[id]) {
+        // Later pack wins — warn so overrides aren't silent.
+        warn(
+          `[WARN] Rule "${id}" from "${sources[i]}" overrides an earlier pack`,
+        )
+      }
+      merged.rules[id] = rule
+    }
+  }
+  const count = Object.keys(merged.rules).length
+  merged.metadata.description = `${
+    merged.metadata.description ?? ""
+  } [${packs.length} packs merged, ${count} rules]`.trim()
+  return merged
 }
 
 async function readSource(source: string): Promise<string> {

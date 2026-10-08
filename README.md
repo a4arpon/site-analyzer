@@ -36,8 +36,12 @@ cd site-analyzer
 
 # run an audit (no build step needed)
 deno task dev --site=https://example.com \
-  --rule=./rules/e-commerce.json \
+  --rule=./rules/core.json \
   --output-type=compact-agent
+
+# core + commerce add-on in one run (comma = merge packs)
+deno task dev --site=https://shop.example.com \
+  --rule=./rules/core.json,./rules/e-commerce.json
 ```
 
 Deno install (one-time): https://deno.com/install
@@ -64,8 +68,15 @@ deno check src/app.ts   # typecheck entry
 | Flag | Required | Meaning |
 |---|---|---|
 | `--site=<url-or-spec>` | **yes** | Target. Two forms below. |
-| `--rule=<path\|url>` | **yes** | Local path **or** remote URL to a JSON rule pack. If omitted, webalyzer prints suggested built-in skill packs (name/description/url) and exits — it runs **nothing** by default. |
+| `--rule=<packs>` | **yes** | One or more JSON rule packs, **comma-separated** (local paths or remote URLs) — packs merge into one run. If omitted, webalyzer prints suggested built-in skill packs (name/description/url) and exits — it runs **nothing** by default. |
 | `--output-type=<mode>` | no | `overview` (plain human) · `info` (default, colorized agent report) · `agent` (token-optimized `key=value`) · `compact-agent` (heavily compressed, ~85% fewer tokens; progress→stderr). |
+
+### Bundled packs
+
+| Pack | Rules | Covers |
+|---|---|---|
+| `rules/core.json` | 40 | **Everything**: SEO (title/h1/meta/canonical) · Open Graph · JSON-LD presence · **accessibility** (alt, labels, aria refs, roles, landmarks, heading order, duplicate ids, zoom) · **AI-agent navigability** (llms.txt, robots/sitemap, clickable hooks, dead links, form submittability). |
+| `rules/e-commerce.json` | 3 | Commerce add-on: Product / Offer / BreadcrumbList JSON-LD validity. Load with core: `--rule=./rules/core.json,./rules/e-commerce.json` |
 
 ### Site spec — scope what gets crawled
 
@@ -113,13 +124,16 @@ src/site-spec.ts    `--site` spec parser: plain URL = single page (no
                     `*`/`**` cross `/`; origin fixed, path-only match.
 src/crawler.ts      fetch + retry + sitemap discovery (robots Sitemap:,
                     /sitemap.xml, /sitemap_index.xml, recursive index).
-src/rules-loader.ts loadRulePack(src): local OR remote, JSON.parse,
-                    structural validation against rules/schema.json.
-src/engine.ts      RuleCheckerEngine: 7 check types, score, report.
+src/rules-loader.ts loadRulePacks(spec): local OR remote, comma-separated,
+                    JSON.parse + structural validation, pack merge (later
+                    pack wins on rule-ID collision).
+src/engine.ts      RuleCheckerEngine: 10 check types, score, report.
 src/display.ts      formatReport(result, type): 4 renderers.
 src/config.ts       EngineDefaults + ScoreWeights (P0=50 P1=30 P2=15 P3=4).
 src/types.ts        RuleT / Check / Finding types.
-rules/e-commerce.json  bundled example pack (12 rules).
+rules/core.json     everything pack (40 rules: SEO + OG + JSON-LD + a11y
+                    + AI-agent navigability).
+rules/e-commerce.json  commerce add-on (3 rules: Product/Offer/Breadcrumb).
 rules/schema.json    JSON-Schema (draft-07) for packs. $id webalyzer.dev.
 ```
 
@@ -162,19 +176,74 @@ Full schema: `rules/schema.json`. Minimal shape:
 
 | `type` | What it does |
 |---|---|
-| `selector` | CSS-select DOM, assert count/attribute/length via `threshold`. |
+| `selector` | CSS-select DOM, assert count/attribute/length via `threshold`. Add an `each` block for **per-element** attribute assertions (see below). |
 | `header` | Assert an HTTP response header. |
-| `regex` | Match a pattern against HTML or headers. |
+| `regex` | Match a pattern against HTML or headers (`threshold: {equals: false}` = must NOT match). |
 | `fetch` | Fetch a URL (supports `{{baseUrl}}`), assert status. |
 | `composite` | Combine sub-rules with `all`/`any`/`none` logic. |
 | `jsonld` | **Validate schema.org JSON-LD** (see below). |
+| `unique` | Duplicate-attribute detection (`[id]` → each `id` must be unique). |
+| `pairing` | Cross-element reference integrity: `label[for]` → real id, `aria-labelledby` tokens → real ids (`{value}` interpolation, `requireAnyOf`, `tokenize`). |
+| `sequence` | Document-order rules: heading hierarchy must not skip levels (`no-skip`). |
 | `script` / `custom` | Not yet implemented (engine emits a finding). |
+
+Counting checks (`unique`, `pairing`, `sequence`, `each`) default to
+`threshold: {equals: 0}` — zero violations passes.
+
+### Per-element assertions (`each`)
+
+Plain selector checks join values; `each` validates **every matched
+element separately** — allowed sets and patterns live in the pack, the
+engine hardcodes no vocabulary:
+
+```json
+{
+  "type": "selector",
+  "selector": "[role]",
+  "each": {
+    "attribute": "role",
+    "allowedValues": ["button", "navigation", "dialog"],
+    "pattern": "^[a-z-]+$",
+    "nonEmpty": true
+  }
+}
+```
+
+### Reference integrity + document order
+
+```json
+{
+  "type": "pairing",
+  "selector": "label[for]",
+  "attribute": "for",
+  "requireSelector": "[id='{value}']",   // {value} = the for attribute
+  "tokenize": true                        // aria-labelledby id lists
+},
+{
+  "type": "pairing",
+  "selector": "input:not([aria-label]):not([title])",
+  "attribute": "id",
+  "requireAnyOf": ["label[for='{value}']"]  // any match passes
+},
+{
+  "type": "sequence",
+  "selector": "h1,h2,h3,h4,h5,h6",          // document order, no skips
+  "sequenceRule": "no-skip"
+},
+{
+  "type": "unique",
+  "selector": "[id]",
+  "attribute": "id"
+}
+```
 
 ### JSON-LD checks (the core)
 
 The `jsonld` type is **fully declarative** — the engine hardcodes
 **zero** schema vocabulary. It supports arrays + `@graph` + array-valued
-`@type` automatically. All assertions are optional:
+`@type` automatically, and **collects nested objects**, so an `Offer`
+inline inside `Product.offers` is individually addressable via
+`jsonldType: "Offer"`. All assertions are optional:
 
 ```json
 {
@@ -220,9 +289,10 @@ schema.org / Google-rich-result constraint for **any** business type
 
 ## Status
 
-- [x] Pluggable local/remote rule packs
+- [x] Pluggable local/remote rule packs (comma-separated merge)
 - [x] Sitemap-aware multi-URL crawl
-- [x] 7 check types incl. relational JSON-LD validation
+- [x] 10 check types incl. relational JSON-LD, `unique`/`pairing`/`sequence`/`each`
+- [x] Bundled packs: `core.json` (40 rules: SEO + a11y + agent-nav) + `e-commerce.json` (3)
 - [x] 4 output modes (overview / info / agent / compact-agent)
 - [x] **Standalone binaries** — `deno task build:compile` → `./dist/web-analyzer-qjs` (QuickJS engine, ~60 MB) + `./dist/web-analyzer-v8` (V8, ~100 MB); `--allow-net`/`--allow-read` baked in
 - [ ] JS-rendered SPA crawl (static HTML only for now — client-injected JSON-LD on SPAs is not yet visible)
