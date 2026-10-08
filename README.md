@@ -5,7 +5,9 @@
 > instructions per finding. Built for AI agents (Claude Code, Cursor,
 > Codex, custom agents) — not humans.
 
-**One line:** `webalyzer --site=<url> --rule=<pack.json>` → structured findings.
+**One line:** `webalyzer --site=<url>` → structured findings (bundled core
+pack runs by default; add `--rule=<pack.json>` for more, `--no-default-rule`
+to opt out).
 
 ---
 
@@ -34,14 +36,16 @@ Runtime: **Deno 2.x** (`deno --version` ≥ 2.9).
 git clone https://github.com/a4arpon/site-analyzer
 cd site-analyzer
 
-# run an audit (no build step needed)
-deno task dev --site=https://example.com \
-  --rule=./rules/core.json \
-  --output-type=compact-agent
+# run an audit (no build step needed; bundled core pack runs by default)
+deno task dev --site=https://example.com --output-type=compact-agent
 
-# core + commerce add-on in one run (comma = merge packs)
+# add a pack on top of the default core (packs merge, later wins)
 deno task dev --site=https://shop.example.com \
-  --rule=./rules/core.json,./rules/e-commerce.json
+  --rule=./src/assets/e-commerce.json
+
+# audit ONLY your own pack (skip the default core)
+deno task dev --site=https://example.com \
+  --rule=./my-pack.json --no-default-rule
 ```
 
 Deno install (one-time): https://deno.com/install
@@ -51,15 +55,16 @@ Deno install (one-time): https://deno.com/install
 ## Commands
 
 ```sh
-# Audit. --rule is REQUIRED (no default pack).
-deno task dev --site=<url-or-spec> --rule=<pack> [--output-type=<mode>]
+# Audit. --rule is optional — bundled core pack runs by default.
+deno task dev --site=<url-or-spec> [--rule=<packs>] [--no-default-rule] [--output-type=<mode>]
 
-# Compile standalone binaries (emits ./dist/web-analyzer-qjs + ./dist/web-analyzer-v8)
-deno task build:compile
+# Compile standalone binaries (embedded core pack travels with them)
+deno task build:compile        # ./dist/web-analyzer-qjs (QuickJS)
+deno task build:compile-v8     # ./dist/web-analyzer-v8 (V8)
 
 # Quality gates
-deno lint          # src/* + rules/*
-deno fmt           # format
+deno lint          # src/*
+deno fmt           # format (src/* + src/assets/*)
 deno check src/app.ts   # typecheck entry
 ```
 
@@ -68,15 +73,16 @@ deno check src/app.ts   # typecheck entry
 | Flag | Required | Meaning |
 |---|---|---|
 | `--site=<url-or-spec>` | **yes** | Target. Two forms below. |
-| `--rule=<packs>` | **yes** | One or more JSON rule packs, **comma-separated** (local paths or remote URLs) — packs merge into one run. If omitted, webalyzer prints suggested built-in skill packs (name/description/url) and exits — it runs **nothing** by default. |
+| `--rule=<packs>` | no | One or more JSON rule packs, **comma-separated** (local paths or remote URLs). Packs are merged **on top of the bundled core pack** — later packs win on rule-ID collision. Omit it and the core pack runs alone. |
+| `--no-default-rule` | no | Exclude the bundled core pack. With `--rule`, audits only your packs; without `--rule`, prints suggested built-in skill packs (name/description/url) and exits 0 — nothing is audited. |
 | `--output-type=<mode>` | no | `overview` (plain human) · `info` (default, colorized agent report) · `agent` (token-optimized `key=value`) · `compact-agent` (heavily compressed, ~85% fewer tokens; progress→stderr). |
 
 ### Bundled packs
 
 | Pack | Rules | Covers |
 |---|---|---|
-| `rules/core.json` | 40 | **Everything**: SEO (title/h1/meta/canonical) · Open Graph · JSON-LD presence · **accessibility** (alt, labels, aria refs, roles, landmarks, heading order, duplicate ids, zoom) · **AI-agent navigability** (llms.txt, robots/sitemap, clickable hooks, dead links, form submittability). |
-| `rules/e-commerce.json` | 3 | Commerce add-on: Product / Offer / BreadcrumbList JSON-LD validity. Load with core: `--rule=./rules/core.json,./rules/e-commerce.json` |
+| `src/assets/core.json` | 40 | **The default pack — embedded in the binary, runs on every audit.** SEO (title/h1/meta/canonical) · Open Graph · JSON-LD presence · **accessibility** (alt, labels, aria refs, roles, landmarks, heading order, duplicate ids, zoom) · **AI-agent navigability** (llms.txt, robots/sitemap, clickable hooks, dead links, form submittability). |
+| `src/assets/e-commerce.json` | 3 | Commerce add-on: Product / Offer / BreadcrumbList JSON-LD validity. Merges on top of the default core: `--rule=./src/assets/e-commerce.json` |
 
 ### Site spec — scope what gets crawled
 
@@ -131,10 +137,11 @@ src/engine.ts      RuleCheckerEngine: 10 check types, score, report.
 src/display.ts      formatReport(result, type): 4 renderers.
 src/config.ts       EngineDefaults + ScoreWeights (P0=50 P1=30 P2=15 P3=4).
 src/types.ts        RuleT / Check / Finding types.
-rules/core.json     everything pack (40 rules: SEO + OG + JSON-LD + a11y
-                    + AI-agent navigability).
-rules/e-commerce.json  commerce add-on (3 rules: Product/Offer/Breadcrumb).
-rules/schema.json    JSON-Schema (draft-07) for packs. $id webalyzer.dev.
+src/assets/core.json     the DEFAULT pack (40 rules: SEO + OG + JSON-LD +
+                         a11y + AI-agent navigability). Embedded via JSON
+                         import → ships inside compiled binaries.
+src/assets/e-commerce.json  commerce add-on (3 rules: Product/Offer/Breadcrumb).
+src/assets/schema.json    JSON-Schema (draft-07) for packs. $id webalyzer.dev.
 ```
 
 **No business logic is hardcoded.** Every check — including JSON-LD
@@ -148,7 +155,7 @@ interprets it. You (the pack author) own the accuracy.
 A pack = `{ metadata, rules }`. Rules keyed by ID
 (`^[A-Z]{2,6}-\d{2,3}$`, e.g. `SEO-01`, `JSONLD-01`).
 
-Full schema: `rules/schema.json`. Minimal shape:
+Full schema: `src/assets/schema.json`. Minimal shape:
 
 ```json
 {
@@ -294,7 +301,7 @@ schema.org / Google-rich-result constraint for **any** business type
 - [x] 10 check types incl. relational JSON-LD, `unique`/`pairing`/`sequence`/`each`
 - [x] Bundled packs: `core.json` (40 rules: SEO + a11y + agent-nav) + `e-commerce.json` (3)
 - [x] 4 output modes (overview / info / agent / compact-agent)
-- [x] **Standalone binaries** — `deno task build:compile` → `./dist/web-analyzer-qjs` (QuickJS engine, ~60 MB) + `./dist/web-analyzer-v8` (V8, ~100 MB); `--allow-net`/`--allow-read` baked in
+- [x] **Standalone binaries** — `deno task build:compile` → `./dist/web-analyzer-qjs` (QuickJS engine, ~60 MB) + `deno task build:compile-v8` → `./dist/web-analyzer-v8` (V8, ~100 MB); `--allow-net`/`--allow-read` baked in, default pack embedded
 - [ ] JS-rendered SPA crawl (static HTML only for now — client-injected JSON-LD on SPAs is not yet visible)
 - [ ] `script` / `custom` check types
 - [ ] Per-host politeness / `robots.txt` Disallow compliance (currently only reads `Sitemap:`)

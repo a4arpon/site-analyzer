@@ -63,11 +63,17 @@ export function mergeRulePacks(packs: RuleT[], sources: string[]): RuleT {
   }
   for (const [i, pack] of packs.entries()) {
     for (const [id, rule] of Object.entries(pack.rules)) {
-      if (merged.rules[id]) {
-        // Later pack wins — warn so overrides aren't silent.
-        warn(
-          `[WARN] Rule "${id}" from "${sources[i]}" overrides an earlier pack`,
-        )
+      const existing = merged.rules[id]
+      if (existing) {
+        // Identical content (e.g. default core + explicit core.json) →
+        // silent; real override → later pack wins, warn so it isn't silent.
+        if (JSON.stringify(existing) !== JSON.stringify(rule)) {
+          warn(
+            `[WARN] Rule "${id}" from "${
+              sources[i]
+            }" overrides an earlier pack`,
+          )
+        }
       }
       merged.rules[id] = rule
     }
@@ -107,7 +113,7 @@ async function readSource(source: string): Promise<string> {
   }
 }
 
-function validatePack(pack: unknown, source: string): void {
+export function validatePack(pack: unknown, source: string): void {
   if (typeof pack !== "object" || pack === null) {
     throw new Error(`Rule pack "${source}" must be a JSON object`)
   }

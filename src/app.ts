@@ -2,10 +2,25 @@ import { log } from "node:console"
 import { RuleCheckerEngine } from "#src/engine.ts"
 import { formatReport, type OutputType } from "#src/display.ts"
 import { AppBranding, AppConfig, EngineDefaults } from "#src/config.ts"
-import { loadRulePacks } from "#src/rules-loader.ts"
+import {
+  loadRulePacks,
+  mergeRulePacks,
+  validatePack,
+} from "#src/rules-loader.ts"
 import { discoverUrls } from "#src/crawler.ts"
 import { matchPath, parseSiteSpec } from "#src/site-spec.ts"
 import { RuleT } from "#src/types.ts"
+// Default pack, EMBEDDED so compiled binaries work from any cwd.
+import corePack from "./assets/core.json" with { type: "json" }
+
+// The bundled core pack, validated once at startup. Runs on every audit
+// unless --no-default-rule is passed (or the user's --rule packs replace
+// same-ID rules via merge, later pack wins).
+function defaultPack(): RuleT {
+  const pack = corePack as RuleT
+  validatePack(pack, "<embedded src/assets/core.json>")
+  return pack
+}
 
 // Built-in skill packs. Listed when no --rule is supplied so an agent knows
 // exactly where to load skills from. URLs point at raw rule packs on the
@@ -20,18 +35,18 @@ const BUILTIN_SKILLS: BuiltInSkill[] = [
   {
     name: "core",
     description:
-      "Everything pack: SEO + Open Graph + JSON-LD + accessibility (alt, labels, roles, landmarks, heading order, duplicate ids) + AI-agent navigability (llms.txt, clickable hooks, dead links, forms). 40 rules.",
+      "Everything pack (DEFAULT — bundled in the binary): SEO + Open Graph + JSON-LD + accessibility (alt, labels, roles, landmarks, heading order, duplicate ids) + AI-agent navigability (llms.txt, clickable hooks, dead links, forms). 40 rules.",
     url:
-      "https://raw.githubusercontent.com/a4arpon/site-analyzer/main/rules/core.json",
+      "https://raw.githubusercontent.com/a4arpon/site-analyzer/main/src/assets/core.json",
   },
   {
     name: "e-commerce",
     description:
-      "Commerce add-on: Product/Offer/BreadcrumbList JSON-LD validity (price, currency, availability). Load together with core: --rule=core,e-commerce.",
+      "Commerce add-on: Product/Offer/BreadcrumbList JSON-LD validity (price, currency, availability). Merges on top of the default core: --rule=<url or path>.",
     url:
-      "https://raw.githubusercontent.com/a4arpon/site-analyzer/main/rules/e-commerce.json",
+      "https://raw.githubusercontent.com/a4arpon/site-analyzer/main/src/assets/e-commerce.json",
   },
-  // Add more built-in packs here as they are authored in rules/.
+  // Add more built-in packs here as they are authored in src/assets/.
 ]
 
 const OUTPUT_TYPES: OutputType[] = [
@@ -45,9 +60,19 @@ function parseArgs(argv: string[]): {
   site?: string
   rule?: string
   output?: string
+  noDefaultRule: boolean
 } {
-  const out: { site?: string; rule?: string; output?: string } = {}
+  const out: {
+    site?: string
+    rule?: string
+    output?: string
+    noDefaultRule: boolean
+  } = { noDefaultRule: false }
   for (const arg of argv) {
+    if (arg === "--no-default-rule") {
+      out.noDefaultRule = true
+      continue
+    }
     const m = arg.match(/^--([\w-]+)=(.*)$/)
     if (!m) continue
     if (m[1] === "site") out.site = m[2]
@@ -57,11 +82,11 @@ function parseArgs(argv: string[]): {
   return out
 }
 
-const { site, rule, output } = parseArgs(Deno.args)
+const { site, rule, output, noDefaultRule } = parseArgs(Deno.args)
 
 if (!site) {
   log(
-    "Usage: deno task dev --site=<url-or-spec> --rule=<local-or-remote-pack> [--output-type=<mode>]",
+    "Usage: deno task dev --site=<url-or-spec> [--rule=<packs>] [--no-default-rule] [--output-type=<mode>]",
   )
   log("  --site        target website (required). Two forms:")
   log(
@@ -73,11 +98,12 @@ if (!site) {
   log(
     "                  e.g. https://example.com/*                  (whole site)",
   )
-  log(
-    "  --rule        comma-separated paths or URLs to rule packs (required)",
-  )
-  log("                  e.g. ./rules/core.json")
-  log("                  e.g. ./rules/core.json,./rules/e-commerce.json")
+  log("  --rule        comma-separated packs (optional): merged ON TOP of the")
+  log("                  bundled core pack (src/assets/core.json, embedded in")
+  log("                  the binary — no file on disk needed).")
+  log("                  e.g. --rule=./src/assets/e-commerce.json")
+  log("  --no-default-rule  exclude the bundled core pack. Without --rule this")
+  log("                  prints suggested skill packs and exits (no audit).")
   log(`  --output-type ${OUTPUT_TYPES.join("|")} (default: info)`)
   log(`${AppBranding.maintainer} │ ${AppBranding.repo}`)
   Deno.exit(1)
@@ -107,13 +133,15 @@ const status = (msg: string) => {
   else log(msg)
 }
 
-// No config supplied → run nothing. Suggest built-in skill packs so the
-// agent knows precisely where to load skills from. In machine modes stdout
-// stays PURE JSON (messages + branding go to stderr).
-if (!rule) {
+// No rules to run at all (opted out of defaults, supplied none) → suggest
+// built-in skill packs so the agent knows where to load skills from. In
+// machine modes stdout stays PURE JSON (messages + branding → stderr).
+if (!rule && noDefaultRule) {
   if (machineMode) {
     Deno.stderr.writeSync(
-      enc.encode("[WARN] No --rule provided. Nothing audited.\n"),
+      enc.encode(
+        "[WARN] --no-default-rule without --rule. Nothing audited.\n",
+      ),
     )
     Deno.stderr.writeSync(
       enc.encode("Load a skill pack with --rule=<path-or-url>.\n"),
@@ -124,7 +152,9 @@ if (!rule) {
       ),
     )
   } else {
-    log("\x1b[33m[WARN]\x1b[0m No --rule provided. Nothing audited.")
+    log(
+      "\x1b[33m[WARN]\x1b[0m --no-default-rule without --rule. Nothing audited.",
+    )
     log(
       "Load a skill pack with --rule=<path-or-url>. Suggested built-in skills:",
     )
@@ -136,7 +166,20 @@ if (!rule) {
   Deno.exit(0)
 }
 
-const pack: RuleT = await loadRulePacks(rule)
+// Pack resolution: bundled core first (unless opted out), then the user's
+// --rule packs on top — later packs win on rule-ID collision.
+let pack: RuleT
+if (noDefaultRule) {
+  pack = rule ? await loadRulePacks(rule) : defaultPack() // unreachable: gated above
+} else if (rule) {
+  const userPacks = await loadRulePacks(rule)
+  pack = mergeRulePacks([defaultPack(), userPacks], [
+    "<embedded core>",
+    rule,
+  ])
+} else {
+  pack = defaultPack()
+}
 
 const engine = new RuleCheckerEngine(pack, {
   concurrency: EngineDefaults.concurrency,
