@@ -1,11 +1,16 @@
 {
   "disable_ai":false,
-  "language_servers": [
-    "!typescript-language-server",
-    "!oxfmt",
-    "!oxlint",
-    "deno"
-  ],
+ "languages": {
+   "JavaScript": {
+     "language_servers": [
+       "deno","codebook"
+     ]
+   },
+   "TypeScript": {
+     "language_servers": [
+       "deno","codebook"]
+   }
+ },
   "formatter": {
     "language_server": {
       "name": "deno"
