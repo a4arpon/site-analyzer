@@ -41,7 +41,9 @@ async function readSource(source: string): Promise<string> {
   // Remote URL
   if (/^https?:\/\//i.test(source)) {
     const res = await fetch(source, {
-      headers: { "User-Agent": "webalyzer/1.0 (+https://github.com/a4arpon/webalyzer)" },
+      headers: {
+        "User-Agent": "webalyzer/1.0 (+https://github.com/a4arpon/webalyzer)",
+      },
     })
     if (!res.ok) {
       throw new Error(

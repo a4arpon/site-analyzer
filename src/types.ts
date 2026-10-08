@@ -98,7 +98,10 @@ export type Check = {
   conditional?: JsonLdConditional[]
   enumValues?: Record<string, string[]> // path -> allowed values
   patterns?: Record<string, string> // path -> regex source
-  numericRange?: Record<string, { min?: number; max?: number; exclusiveMin?: boolean }>
+  numericRange?: Record<
+    string,
+    { min?: number; max?: number; exclusiveMin?: boolean }
+  >
   arrayItemTypes?: Record<string, JsonLdFieldType> // validate every array element
 }
 

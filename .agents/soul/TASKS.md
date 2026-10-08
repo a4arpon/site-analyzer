@@ -33,8 +33,8 @@ A Deno CLI that audits any website against versioned, schema-validated JSON rule
 Implemented (2026-07-19):
 - CLI: `deno task dev --site=<url> [--rule=<local|remote>]`.
 - `src/rules-loader.ts`: `loadRulePack(source)` — local path OR remote URL, JSON.parse + structural validation (ID pattern, key/id, required fields, valid check.type).
-- `src/crawler.ts`: `discoverUrls(site)` — robots.txt `Sitemap:` + `/sitemap.xml` + `/sitemap_index.xml`, recursive index parsing, depth-guarded. Falls back to seed URL if none found.
-- `app.ts`: parses `--site`(required)/`--rule`. **No `--rule` → run nothing**, print `BUILTIN_SKILLS` JSON array (name/description/raw GitHub url) and exit 0. With `--rule` → loads pack, discovers URLs, runs `auditMany`, prints `formatText` per URL.
+- `src/crawler.ts`: `discoverUrls(site)` — robots.txt `Sitemap:` + `/sitemap.xml` + `/sitemap_index.xml`, recursive index parsing, depth-guarded. Only called when `--site` has a glob (see `src/site-spec.ts`); plain URL = single-page mode, never probes sitemaps. 0 glob matches → warn + exit 0 (no silent fallback).
+- `app.ts`: parses `--site`(required, site spec: plain URL=single page / glob=scoped sitemap crawl)/`--rule`/`--output-type`. **No `--rule` → run nothing**, print `BUILTIN_SKILLS` JSON array (name/description/raw GitHub url; stdout pure JSON in machine modes) and exit 0. With `--rule` → loads pack, resolves scope, runs `auditMany`, prints `formatReport` (with attribution footer) per URL.
 - Verified live: remote pack load + 84-URL sitemap crawl on sitemaps.org.
 
 ## TODO (next steps, not yet built)

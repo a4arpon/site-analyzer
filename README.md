@@ -16,8 +16,7 @@
 - **First-class TypeScript + URL imports + granular permissions.** `--allow-net`
   / `--allow-read` are explicit and safe by default — the agent knows exactly
   what the tool can touch.
-- **`deno compile` → standalone binary** (`dist/web-analyzer`). Ship one file,
-  no runtime dependency. Compiles today (`deno task build:compile`).
+- **`deno compile` → standalone binaries** (`dist/web-analyzer-qjs` + `dist/web-analyzer-v8`). Ship one file, no runtime dependency. Compiles today (`deno task build:compile`); the QuickJS variant is ~40% smaller.
 - **Built-in lint/format/typecheck** (`deno lint`, `deno fmt`, `deno check`)
   — no separate toolchain.
 - Deps (`htmlparser2`, `css-select`, `domhandler`) are consumed via
@@ -48,10 +47,10 @@ Deno install (one-time): https://deno.com/install
 ## Commands
 
 ```sh
-# Audit a site. --rule is REQUIRED (no default pack).
-deno task dev --site=<url> --rule=<local-or-remote-pack> [--output-type=<mode>]
+# Audit. --rule is REQUIRED (no default pack).
+deno task dev --site=<url-or-spec> --rule=<pack> [--output-type=<mode>]
 
-# Compile a standalone binary (emits ./dist/web-analyzer)
+# Compile standalone binaries (emits ./dist/web-analyzer-qjs + ./dist/web-analyzer-v8)
 deno task build:compile
 
 # Quality gates
@@ -64,12 +63,31 @@ deno check src/app.ts   # typecheck entry
 
 | Flag | Required | Meaning |
 |---|---|---|
-| `--site=<url>` | **yes** | Website to audit. |
+| `--site=<url-or-spec>` | **yes** | Target. Two forms below. |
 | `--rule=<path\|url>` | **yes** | Local path **or** remote URL to a JSON rule pack. If omitted, webalyzer prints suggested built-in skill packs (name/description/url) and exits — it runs **nothing** by default. |
 | `--output-type=<mode>` | no | `overview` (plain human) · `info` (default, colorized agent report) · `agent` (token-optimized `key=value`) · `compact-agent` (heavily compressed, ~85% fewer tokens; progress→stderr). |
 
-If the site exposes a sitemap (`robots.txt` `Sitemap:` or `/sitemap.xml`),
-**all** URLs in it are crawled; else only the seed URL.
+### Site spec — scope what gets crawled
+
+`--site` is a **spec, not just a URL**:
+
+```sh
+# Plain URL → audit ONLY that page. No robots.txt / sitemap probes at all.
+--site=https://example.com/about
+
+# Glob in the path → sitemap discovery + path filter (subtree).
+# `*` and `**` both CROSS `/`; `?` = one char. Origin is fixed by the spec.
+--site=https://example.com/community-docs/*    # everything under /community-docs/
+--site=https://example.com/blog/*              # everything under /blog/
+--site=https://example.com/*                   # whole site (explicit)
+
+# Scheme optional: example.com/x  →  https://example.com/x
+```
+
+Matching applies to the **URL path only** (query strings ignored). If a glob
+scope matches 0 sitemap URLs, webalyzer warns and exits 0 — it never silently
+widens scope. Every report ends with an attribution footer
+(`maintained by a4arpon │ github.com/a4arpon/site-analyzer`).
 
 ### Output modes (token cost, same audit)
 
@@ -88,7 +106,11 @@ stderr) so you can pipe it straight into an agent's context.
 
 ```
 src/app.ts          entry: parses --site/--rule/--output-type, loads pack,
-                    discovers URLs, runs auditMany, prints report.
+                    resolves scope (single page vs glob), runs auditMany,
+                    prints report.
+src/site-spec.ts    `--site` spec parser: plain URL = single page (no
+                    sitemap crawl); glob = sitemap discovery + path filter.
+                    `*`/`**` cross `/`; origin fixed, path-only match.
 src/crawler.ts      fetch + retry + sitemap discovery (robots Sitemap:,
                     /sitemap.xml, /sitemap_index.xml, recursive index).
 src/rules-loader.ts loadRulePack(src): local OR remote, JSON.parse,
@@ -202,7 +224,7 @@ schema.org / Google-rich-result constraint for **any** business type
 - [x] Sitemap-aware multi-URL crawl
 - [x] 7 check types incl. relational JSON-LD validation
 - [x] 4 output modes (overview / info / agent / compact-agent)
-- [x] **Standalone binary** — `deno task build:compile` → `./dist/web-analyzer` (Deno-compiled, `--allow-net`/`--allow-read` baked in)
+- [x] **Standalone binaries** — `deno task build:compile` → `./dist/web-analyzer-qjs` (QuickJS engine, ~60 MB) + `./dist/web-analyzer-v8` (V8, ~100 MB); `--allow-net`/`--allow-read` baked in
 - [ ] JS-rendered SPA crawl (static HTML only for now — client-injected JSON-LD on SPAs is not yet visible)
 - [ ] `script` / `custom` check types
 - [ ] Per-host politeness / `robots.txt` Disallow compliance (currently only reads `Sitemap:`)

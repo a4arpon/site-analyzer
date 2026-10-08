@@ -1,5 +1,6 @@
 import type { AuditResult } from "#src/engine.ts"
 import type { Finding } from "#src/types.ts"
+import { AppBranding } from "#src/config.ts"
 
 export type OutputType = "overview" | "info" | "agent" | "compact-agent"
 
@@ -20,11 +21,21 @@ const PRIORITY_COLOR: Record<string, string> = {
   P3: C.dim,
 }
 
-// Dispatch by requested output type.
+// Attribution footer — every report traces back to its author + source.
+function footerText(): string {
+  return `${C.dim}── ${AppBranding.tagline} ${C.bold}${AppBranding.maintainer}${C.reset} ${C.dim}│ ${AppBranding.repo}${C.reset}`
+}
+
+// Dispatch by requested output type. Every report ends with an attribution
+// footer so the tool + author are always traceable.
 export function formatReport(
   result: AuditResult,
   type: OutputType = "info",
 ): string {
+  return `${reportBody(result, type)}\n${footerFor(type)}`
+}
+
+function reportBody(result: AuditResult, type: OutputType): string {
   switch (type) {
     case "overview":
       return formatOverview(result)
@@ -36,6 +47,19 @@ export function formatReport(
     default:
       return formatText(result)
   }
+}
+
+function footerFor(type: OutputType): string {
+  if (type === "compact-agent") {
+    return `#|${AppBranding.maintainer}|${AppBranding.repo}`
+  }
+  if (type === "agent") {
+    return `BY=${AppBranding.maintainer} REPO=${AppBranding.repo}`
+  }
+  if (type === "overview") {
+    return `${AppBranding.tagline} ${AppBranding.maintainer} │ ${AppBranding.repo}`
+  }
+  return footerText()
 }
 
 // Pure-text console report for AI agents. Includes the fix instruction per
@@ -52,9 +76,9 @@ export function formatText(result: AuditResult): string {
   // Header
   out.push(`${C.bold}webalyzer audit${C.reset} → ${result.url}`)
   out.push(
-    `Score ${C.bold}${stats.score}${C.reset}/100 (${gradeColor(stats.grade)}${
-      stats.grade
-    }${C.reset}) │ ${stats.failed} findings │ ${result.durationMs}ms`,
+    `Score ${C.bold}${stats.score}${C.reset}/100 (${
+      gradeColor(stats.grade)
+    }${stats.grade}${C.reset}) │ ${stats.failed} findings │ ${result.durationMs}ms`,
   )
   out.push(
     `  P0:${stats.p0} P1:${stats.p1} P2:${stats.p2} P3:${stats.p3} │ passed:${stats.passed}/${stats.total}`,
@@ -127,12 +151,18 @@ function formatAgent(result: AuditResult): string {
     (a, b) => priorityRank(a.priority) - priorityRank(b.priority),
   )
   for (const f of ordered) {
-    const snip = f.codeSnippet ? ` || fix_code=${JSON.stringify(f.codeSnippet)}` : ""
+    const snip = f.codeSnippet
+      ? ` || fix_code=${JSON.stringify(f.codeSnippet)}`
+      : ""
     const det = f.details && Object.keys(f.details).length
       ? ` || details=${JSON.stringify(f.details)}`
       : ""
     out.push(
-      `FINDING id=${f.ruleId} pri=${f.priority} title=${JSON.stringify(f.title)} why=${JSON.stringify(f.why)} fix=${JSON.stringify(f.fix)} effort=${f.effort ?? "-"}${snip}${det}`,
+      `FINDING id=${f.ruleId} pri=${f.priority} title=${
+        JSON.stringify(f.title)
+      } why=${JSON.stringify(f.why)} fix=${JSON.stringify(f.fix)} effort=${
+        f.effort ?? "-"
+      }${snip}${det}`,
     )
   }
   return out.join("\n")
@@ -172,7 +202,9 @@ function formatFinding(f: Finding): string {
   lines.push(`  fix: ${f.fix}`)
   if (f.codeSnippet) {
     lines.push(`  snippet:`)
-    for (const ln of f.codeSnippet.split("\n")) lines.push(`    ${C.dim}${ln}${C.reset}`)
+    for (const ln of f.codeSnippet.split("\n")) {
+      lines.push(`    ${C.dim}${ln}${C.reset}`)
+    }
   }
   if (f.effort) lines.push(`  effort: ${f.effort}`)
   if (f.details && Object.keys(f.details).length > 0) {

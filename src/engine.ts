@@ -164,7 +164,8 @@ export class RuleCheckerEngine {
         Math.min(20, options.concurrency ?? EngineDefaults.concurrency),
       ),
       cache: options.cache ?? EngineDefaults.cache,
-      followRedirects: options.followRedirects ?? EngineDefaults.followRedirects,
+      followRedirects: options.followRedirects ??
+        EngineDefaults.followRedirects,
       ruleBatchSize: Math.max(
         1,
         Math.min(50, options.ruleBatchSize ?? EngineDefaults.ruleBatchSize),
@@ -425,7 +426,9 @@ export class RuleCheckerEngine {
     const passes = this.meetsThreshold(headerValue, check.threshold)
 
     this.logger.debug(
-      `[${rule.id}] header "${check.headerName}" = "${headerValue.slice(0, 60)}"`,
+      `[${rule.id}] header "${check.headerName}" = "${
+        headerValue.slice(0, 60)
+      }"`,
     )
 
     return passes ? [] : [
@@ -605,7 +608,10 @@ export class RuleCheckerEngine {
       targets = nodes.filter(
         (n) =>
           typeof n === "object" && n !== null &&
-          this.matchType((n as Record<string, unknown>)["@type"], check.jsonldType!),
+          this.matchType(
+            (n as Record<string, unknown>)["@type"],
+            check.jsonldType!,
+          ),
       )
       if (targets.length === 0) {
         return [this.createFinding(rule, page.url, {
@@ -638,7 +644,8 @@ export class RuleCheckerEngine {
     const fieldTypes = check.fieldTypes ?? {}
 
     // Resolve a path to a list of leaf values (1 entry if no array traversed).
-    const leaves = (path: string): unknown[] => this.asArray(this.getPath(node, path))
+    const leaves = (path: string): unknown[] =>
+      this.asArray(this.getPath(node, path))
 
     // 1. Required field presence + primitive type.
     for (const path of requiredFields) {
@@ -656,8 +663,10 @@ export class RuleCheckerEngine {
           if (!this.isEmpty(v) && !this.matchesType(v, expected)) {
             findings.push(this.createFinding(rule, url, {
               jsonldField: path,
-              jsonldError: `field "${path}" failed type check (expected ${expected})`,
-              actualValue: String(Array.isArray(v) ? JSON.stringify(v) : v).slice(0, 200),
+              jsonldError:
+                `field "${path}" failed type check (expected ${expected})`,
+              actualValue: String(Array.isArray(v) ? JSON.stringify(v) : v)
+                .slice(0, 200),
             }))
           }
         }
@@ -674,7 +683,9 @@ export class RuleCheckerEngine {
         if (present.length > 0 && missing.length > 0) {
           findings.push(this.createFinding(rule, url, {
             jsonldField: group.join("+"),
-            jsonldError: `incomplete group — present [${present.join(", ")}] but missing [${missing.join(", ")}]`,
+            jsonldError: `incomplete group — present [${
+              present.join(", ")
+            }] but missing [${missing.join(", ")}]`,
           }))
         }
       }
@@ -688,7 +699,8 @@ export class RuleCheckerEngine {
         if (leaves(path).every((v) => this.isEmpty(v))) {
           findings.push(this.createFinding(rule, url, {
             jsonldField: path,
-            jsonldError: `field "${path}" required because "${cond.ifField}" is present`,
+            jsonldError:
+              `field "${path}" required because "${cond.ifField}" is present`,
           }))
         }
       }
@@ -700,7 +712,9 @@ export class RuleCheckerEngine {
           if (missing.length > 0) {
             findings.push(this.createFinding(rule, url, {
               jsonldField: group.join("+"),
-              jsonldError: `incomplete group [${missing.join(", ")}] required because "${cond.ifField}" is present`,
+              jsonldError: `incomplete group [${
+                missing.join(", ")
+              }] required because "${cond.ifField}" is present`,
             }))
           }
         }
@@ -715,7 +729,9 @@ export class RuleCheckerEngine {
         if (!allowed.includes(str)) {
           findings.push(this.createFinding(rule, url, {
             jsonldField: path,
-            jsonldError: `field "${path}" value "${str}" not in allowed set [${allowed.join(", ")}]`,
+            jsonldError: `field "${path}" value "${str}" not in allowed set [${
+              allowed.join(", ")
+            }]`,
             actualValue: str.slice(0, 200),
           }))
         }
@@ -729,7 +745,8 @@ export class RuleCheckerEngine {
         re = new RegExp(pattern)
       } catch {
         findings.push(this.createFinding(rule, url, {
-          jsonldError: `invalid regex pattern in rule for "${path}": ${pattern}`,
+          jsonldError:
+            `invalid regex pattern in rule for "${path}": ${pattern}`,
         }))
         continue
       }
@@ -738,7 +755,9 @@ export class RuleCheckerEngine {
         if (!re.test(String(v))) {
           findings.push(this.createFinding(rule, url, {
             jsonldField: path,
-            jsonldError: `field "${path}" value "${String(v).slice(0, 80)}" fails format /${pattern}/`,
+            jsonldError: `field "${path}" value "${
+              String(v).slice(0, 80)
+            }" fails format /${pattern}/`,
             actualValue: String(v).slice(0, 200),
           }))
         }
@@ -757,7 +776,9 @@ export class RuleCheckerEngine {
             jsonldError: `field "${path}" value ${num} must be > ${rng.min}`,
             actualValue: String(num),
           }))
-        } else if (!rng.exclusiveMin && rng.min !== undefined && num < rng.min) {
+        } else if (
+          !rng.exclusiveMin && rng.min !== undefined && num < rng.min
+        ) {
           findings.push(this.createFinding(rule, url, {
             jsonldField: path,
             jsonldError: `field "${path}" value ${num} must be >= ${rng.min}`,
@@ -782,7 +803,8 @@ export class RuleCheckerEngine {
       if (!Array.isArray(val)) {
         findings.push(this.createFinding(rule, url, {
           jsonldField: path,
-          jsonldError: `field "${path}" expected array for item-type check, got ${typeof val}`,
+          jsonldError:
+            `field "${path}" expected array for item-type check, got ${typeof val}`,
         }))
         continue
       }
@@ -790,8 +812,11 @@ export class RuleCheckerEngine {
         if (this.isEmpty(item) || !this.matchesType(item, itemType)) {
           findings.push(this.createFinding(rule, url, {
             jsonldField: `${path}[${i}]`,
-            jsonldError: `array item ${i} of "${path}" failed type check (expected ${itemType})`,
-            actualValue: String(Array.isArray(item) ? JSON.stringify(item) : item).slice(0, 200),
+            jsonldError:
+              `array item ${i} of "${path}" failed type check (expected ${itemType})`,
+            actualValue: String(
+              Array.isArray(item) ? JSON.stringify(item) : item,
+            ).slice(0, 200),
           }))
         }
       })
@@ -828,7 +853,9 @@ export class RuleCheckerEngine {
     if (typeof n !== "object" || n === null) return false
     const ctx = (n as Record<string, unknown>)["@context"]
     if (typeof ctx === "string") return ctx.includes("schema.org")
-    if (Array.isArray(ctx)) return ctx.some((c) => typeof c === "string" && c.includes("schema.org"))
+    if (Array.isArray(ctx)) {
+      return ctx.some((c) => typeof c === "string" && c.includes("schema.org"))
+    }
     return false
   }
 

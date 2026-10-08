@@ -3,7 +3,17 @@ import type { Priority } from "#src/types.ts"
 export const AppConfig = {
   appName: "webalyzer",
   // User-Agent sent on every crawl + fetch. Keep "webalyzer" in sync with repo.
-  userAgent: "webalyzer/1.0 (Audit Bot; +https://github.com/a4arpon/webalyzer)",
+  userAgent:
+    "webalyzer/1.0 (Audit Bot; +https://github.com/a4arpon/site-analyzer)",
+}
+
+// Attribution — every report carries this so tool + author are traceable
+// back to the source. Single source of truth; display.ts renders it.
+export const AppBranding = {
+  tagline: "designed, developed & maintained by",
+  maintainer: "a4arpon",
+  github: "https://github.com/a4arpon",
+  repo: "https://github.com/a4arpon/site-analyzer",
 }
 
 // Engine-wide defaults. engine.ts pulls from here so magic numbers live in one

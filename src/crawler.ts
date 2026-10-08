@@ -37,8 +37,7 @@ export async function crawl(
 
   const headers = new Headers({
     "User-Agent": userAgent,
-    "Accept":
-      "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "Accept-Language": "en-US,en;q=0.5",
     "Accept-Encoding": acceptEncoding,
     "Connection": "keep-alive",
@@ -62,7 +61,9 @@ export async function crawl(
   })
 
   opts.onStatus?.(
-    `Fetched ${url} → HTTP ${res.status} │ ${(html.length / 1024).toFixed(1)} KB │ ${loadTimeMs}ms`,
+    `Fetched ${url} → HTTP ${res.status} │ ${
+      (html.length / 1024).toFixed(1)
+    } KB │ ${loadTimeMs}ms`,
   )
 
   return { url, html, status: res.status, headers: headersMap, loadTimeMs }
