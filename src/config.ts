@@ -27,7 +27,7 @@ export const EngineDefaults = {
     acceptEncoding: "gzip, deflate, br",
     followRedirects: true,
   },
-  concurrency: 5,
+  concurrency: 8,
   cache: true,
   followRedirects: true,
   ruleBatchSize: 10,
