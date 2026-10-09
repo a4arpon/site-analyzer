@@ -1,0 +1,235 @@
+{
+  "$schema": "./schema.json",
+  "metadata": {
+    "name": "Business & Organization Add-on",
+    "slug": "business",
+    "description": "Business layer: Organization JSON-LD completeness (url, sameAs, contactPoint, postal address) + visible contact and trust links (mailto, contact/about/privacy pages). Merges on top of the default core: --rule=./src/assets/business.json",
+    "version": "1.0.0",
+    "category": "business",
+    "tags": ["business", "organization", "contact", "trust"],
+    "createdBy": {
+      "name": "Xia",
+      "email": "a4arpon@email.com",
+      "url": "https://github.com/a4arpon"
+    },
+    "updatedAt": "2026-10-09",
+    "license": "MIT"
+  },
+  "rules": {
+    "BIZ-01": {
+      "id": "BIZ-01",
+      "name": "Organization Schema Has url and sameAs",
+      "description": "Organization JSON-LD without url and sameAs leaves the entity unanchored: agents cannot link the brand to its official site or verify its presence on LinkedIn/GitHub/Wikipedia. url + sameAs are the minimum for entity resolution in agent answers.",
+      "category": "business",
+      "priority": "P1",
+      "check": {
+        "type": "jsonld",
+        "jsonldType": "Organization",
+        "requireContextSchemaOrg": true,
+        "requiredFields": ["url", "sameAs"],
+        "fieldTypes": { "url": "url", "sameAs": "url" },
+        "scope": "root"
+      },
+      "fix": {
+        "instruction": "Add url (official site URL) and sameAs (array of profile URLs) to the Organization JSON-LD on the homepage.",
+        "codeSnippet": "{\n  \"@context\": \"https://schema.org\",\n  \"@type\": \"Organization\",\n  \"name\": \"Acme Inc\",\n  \"url\": \"https://example.com\",\n  \"logo\": \"https://example.com/logo.png\",\n  \"sameAs\": [\n    \"https://www.linkedin.com/company/acme\",\n    \"https://github.com/acme\"\n  ]\n}",
+        "effort": "easy",
+        "automated": false
+      },
+      "impact": {
+        "seo": "high",
+        "agent": "blocking",
+        "performance": "none",
+        "conversion": "none"
+      }
+    },
+    "BIZ-02": {
+      "id": "BIZ-02",
+      "name": "Organization Schema Has Contact Channel",
+      "description": "Agents answering \"how do I contact this business\" read contactPoint.email from Organization JSON-LD. An Organization with no contactPoint is a dead end for agentic customer journeys.",
+      "category": "business",
+      "priority": "P1",
+      "check": {
+        "type": "jsonld",
+        "jsonldType": "Organization",
+        "requireContextSchemaOrg": true,
+        "requiredFields": ["contactPoint.email"],
+        "fieldTypes": { "contactPoint.email": "string" },
+        "patterns": {
+          "contactPoint.email": "^[^@\\s]+@[^@\\s]+\\.[A-Za-z]{2,}$"
+        },
+        "scope": "root"
+      },
+      "fix": {
+        "instruction": "Add a contactPoint with a valid email to the Organization JSON-LD. Use a company-domain address, not freemail.",
+        "codeSnippet": "\"contactPoint\": {\n  \"@type\": \"ContactPoint\",\n  \"contactType\": \"customer support\",\n  \"email\": \"hello@example.com\"\n}",
+        "effort": "easy",
+        "automated": false
+      },
+      "impact": {
+        "seo": "moderate",
+        "agent": "blocking",
+        "performance": "none",
+        "conversion": "friction"
+      }
+    },
+    "BIZ-03": {
+      "id": "BIZ-03",
+      "name": "Postal Address Is Complete When Present",
+      "description": "A half-filled address (city without street, country without locality) is worse than none: agents and search engines drop partial PostalAddress data, and local-pack listings break. If any address exists, all three parts must exist.",
+      "category": "business",
+      "priority": "P2",
+      "check": {
+        "type": "jsonld",
+        "conditional": [
+          {
+            "ifField": "address",
+            "requireFields": [
+              "address.streetAddress",
+              "address.addressLocality",
+              "address.addressCountry"
+            ]
+          }
+        ],
+        "scope": "page"
+      },
+      "fix": {
+        "instruction": "Complete every address in JSON-LD: streetAddress, addressLocality (city), and addressCountry (ISO 3166-1 alpha-2, e.g. US). Remove the address entirely if the business has no public address.",
+        "codeSnippet": "\"address\": {\n  \"@type\": \"PostalAddress\",\n  \"streetAddress\": \"123 Main St\",\n  \"addressLocality\": \"Springfield\",\n  \"addressCountry\": \"US\"\n}",
+        "effort": "easy",
+        "automated": false
+      },
+      "impact": {
+        "seo": "moderate",
+        "agent": "degraded",
+        "performance": "none",
+        "conversion": "none"
+      }
+    },
+    "BIZ-04": {
+      "id": "BIZ-04",
+      "name": "Visible Contact Email Link Present",
+      "description": "A business page with no mailto: link hides its contact channel from both visitors and agents that scrape visible contact options. Contact must be one click away, not buried behind a form.",
+      "category": "business",
+      "priority": "P2",
+      "check": {
+        "type": "selector",
+        "selector": "a[href^=\"mailto:\"]",
+        "scope": "page",
+        "threshold": { "min": 1, "max": 10 }
+      },
+      "fix": {
+        "instruction": "Add a clickable email link, typically in the footer or contact section: <a href=\"mailto:hello@example.com\">hello@example.com</a>.",
+        "codeSnippet": "<a href=\"mailto:hello@example.com\">hello@example.com</a>",
+        "effort": "trivial",
+        "automated": false
+      },
+      "impact": {
+        "seo": "moderate",
+        "agent": "degraded",
+        "performance": "none",
+        "conversion": "friction"
+      }
+    },
+    "BIZ-05": {
+      "id": "BIZ-05",
+      "name": "No Freemail Contact Addresses",
+      "description": "mailto links to gmail/yahoo/hotmail/outlook and friends undercut brand trust and hurt entity credibility: agents treat company-domain contact info as the identity signal. The freemail list lives in this rule's selector, not the engine.",
+      "category": "business",
+      "priority": "P2",
+      "check": {
+        "type": "selector",
+        "selector": "a[href^=\"mailto:\"][href*=\"@gmail.\"], a[href^=\"mailto:\"][href*=\"@googlemail.\"], a[href^=\"mailto:\"][href*=\"@yahoo.\"], a[href^=\"mailto:\"][href*=\"@hotmail.\"], a[href^=\"mailto:\"][href*=\"@outlook.\"], a[href^=\"mailto:\"][href*=\"@aol.\"], a[href^=\"mailto:\"][href*=\"@icloud.\"], a[href^=\"mailto:\"][href*=\"@protonmail.\"], a[href^=\"mailto:\"][href*=\"@proton.\"], a[href^=\"mailto:\"][href*=\"@gmx.\"]",
+        "scope": "page",
+        "threshold": { "equals": 0 }
+      },
+      "fix": {
+        "instruction": "Replace freemail contact links with a company-domain address (e.g. hello@example.com) and publish the same domain in Organization JSON-LD contactPoint.",
+        "codeSnippet": "<a href=\"mailto:hello@example.com\">hello@example.com</a>",
+        "effort": "moderate",
+        "automated": false
+      },
+      "impact": {
+        "seo": "moderate",
+        "agent": "none",
+        "performance": "none",
+        "conversion": "friction"
+      }
+    },
+    "BIZ-06": {
+      "id": "BIZ-06",
+      "name": "Contact Page Linked",
+      "description": "No link to a contact page means visitors and agents cannot reach the business. The link must exist in the site navigation or footer on every page.",
+      "category": "business",
+      "priority": "P2",
+      "check": {
+        "type": "selector",
+        "selector": "a[href*=\"/contact\"], a[href*=\"get-in-touch\"]",
+        "scope": "page",
+        "threshold": { "min": 1, "max": 10 }
+      },
+      "fix": {
+        "instruction": "Add a contact link to the footer or main navigation: <a href=\"/contact\">Contact</a>. Common variants (/contact-us, /get-in-touch) also match.",
+        "codeSnippet": "<a href=\"/contact\">Contact</a>",
+        "effort": "trivial",
+        "automated": false
+      },
+      "impact": {
+        "seo": "moderate",
+        "agent": "degraded",
+        "performance": "none",
+        "conversion": "friction"
+      }
+    },
+    "BIZ-07": {
+      "id": "BIZ-07",
+      "name": "About Page Linked",
+      "description": "Agents and due-diligence visitors look for an About page to establish who runs the business. A site with no /about link reads as anonymous, which suppresses entity trust.",
+      "category": "business",
+      "priority": "P3",
+      "check": {
+        "type": "selector",
+        "selector": "a[href*=\"/about\"], a[href*=\"/company\"]",
+        "scope": "page",
+        "threshold": { "min": 1, "max": 10 }
+      },
+      "fix": {
+        "instruction": "Add an about link to the footer or navigation: <a href=\"/about\">About us</a>. The page should describe the company, team, and history.",
+        "codeSnippet": "<a href=\"/about\">About us</a>",
+        "effort": "trivial",
+        "automated": false
+      },
+      "impact": {
+        "seo": "moderate",
+        "agent": "degraded",
+        "performance": "none",
+        "conversion": "friction"
+      }
+    },
+    "BIZ-08": {
+      "id": "BIZ-08",
+      "name": "Privacy Policy Linked",
+      "description": "A linked privacy policy is a baseline trust and compliance signal (GDPR, CCPA). Agents and users both treat its absence as a legitimacy red flag; paid ad crawlers reject such sites.",
+      "category": "business",
+      "priority": "P3",
+      "check": {
+        "type": "selector",
+        "selector": "a[href*=\"privacy\"]:not([href^=\"#\"])",
+        "scope": "page",
+        "threshold": { "min": 1, "max": 10 }
+      },
+      "fix": {
+        "instruction": "Publish a privacy policy at /privacy (or /privacy-policy) and link it from the footer on every page. A hash-only #privacy anchor does not count.",
+        "codeSnippet": "<a href=\"/privacy\">Privacy policy</a>",
+        "effort": "easy",
+        "automated": false
+      },
+      "impact": {
+        "seo": "high",
+        "agent": "degraded",
+        "performance": "none",
+        "conversion": "friction"
+      }
+    }
+  }
+}

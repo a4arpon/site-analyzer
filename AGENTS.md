@@ -4,7 +4,7 @@ Deno CLI ("webalyzer") that audits a website against a JSON rule pack and report
 
 ## Stack & tooling (verified)
 - Runtime: **Deno** (`deno 2.9.3`). All commands use the `deno` CLI, not `node`/`npm` despite `package.json` existing.
-- `package.json` declares npm deps (`htmlparser2`, `css-select`, `domhandler`, `inquirer`) but they are consumed via Deno's Node compat. `nodeModulesDir: "auto"` in `deno.json`. No `npm install` step is required to run or typecheck.
+- `package.json` declares npm deps (`htmlparser2`, `css-select`, `domhandler`, `inquirer`) but they are consumed via Deno's Node compat. No `npm install` step is required to run or typecheck.
 - Formatting/linting is **Deno's** (`deno fmt` / `deno lint`), configured in `deno.json`. `.zed/settings.json` also wires the Zed editor to Deno's formatter. Line width 80, no semicolons, spaces (not tabs).
 - `"unstable": ["tsgo"]` is set — typecheck uses the `tsgo` (Go TS) backend.
 
@@ -32,7 +32,7 @@ Deno CLI ("webalyzer") that audits a website against a JSON rule pack and report
 - `src/display.ts` — `formatReport(result, type)`: dispatcher over four renderers, appends the attribution footer (`footerFor`). `formatText` = `info` (colorized, why/fix/snippet). `formatOverview` = plain human summary (no color). `formatAgent` = token-optimized `key=value` lines. `formatCompactAgent` = heavily compressed pipe-delimited tokens (`R|...` header, `$|pri|id|title|fix` per finding, fix truncated to 80 chars, `#|maintainer|repo` footer). Machine modes emit progress to stderr only.
 - `src/rules.ts` — `OfficalRulesSDK`, a read-only accessor over a rule pack (spelled "Offical" in the source — do not "fix" the spelling without renaming usages).
 - `src/updater.ts` — labeled home for the future pack self-update feature (currently a stub returning a placeholder). Not built.
-- Rule packs: `src/assets/core.json` (default everything pack, 40 rules: SEO/OG/JSON-LD + `AXS-*` accessibility + `AG-*` agent navigability — imported by `src/app.ts`, embedded in binaries, runs unless `--no-default-rule`) and `src/assets/e-commerce.json` (commerce add-on, 3 rules: `JSONLD-02` Product / `JSONLD-04` Offer / `JSONLD-05` BreadcrumbList — `--rule` merges it ON TOP of the default core). Plus `src/assets/schema.json` (JSON-Schema draft-07 validating the pack format; `$id` is `https://webalyzer.dev/schemas/rule-spec.json`). The `rules/` directory is retired (packs moved to `src/assets/`).
+- Rule packs: `src/assets/core.json` (default everything pack, 40 rules: SEO/OG/JSON-LD + `AXS-*` accessibility + `AG-*` agent navigability — imported by `src/app.ts`, embedded in binaries, runs unless `--no-default-rule`), `src/assets/e-commerce.json` (commerce add-on, 3 rules: `JSONLD-02` Product / `JSONLD-04` Offer / `JSONLD-05` BreadcrumbList — `--rule` merges it ON TOP of the default core), and `src/assets/business.json` (business add-on, 8 rules: `BIZ-01..08` — Organization url/sameAs/contactPoint, address completeness conditional, mailto/freemail/contact/about/privacy link checks). Plus `src/assets/schema.json` (JSON-Schema draft-07 validating the pack format; `$id` is `https://webalyzer.dev/schemas/rule-spec.json`). The `rules/` directory is retired (packs moved to `src/assets/`).
 
 ## Rule pack format gotchas
 - Rule IDs MUST match `^[A-Z]{2,6}-\d{2,3}$` (e.g. `SEO-01`, `JSONLD-01`). `schema.json` enforces this and `additionalProperties: false`.

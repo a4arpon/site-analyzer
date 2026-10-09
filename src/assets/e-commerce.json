@@ -3,7 +3,7 @@
   "metadata": {
     "name": "E-commerce Schema Add-on",
     "slug": "e-commerce",
-    "description": "Commerce layer: Product, Offer, and BreadcrumbList JSON-LD validity. Load together with core: --rule=./rules/core.json,./rules/e-commerce.json",
+    "description": "Commerce layer: Product, Offer, and BreadcrumbList JSON-LD validity. Load together with core: --rule=./src/assets/e-commerce.json",
     "version": "1.1.0",
     "category": "e-commerce",
     "tags": ["e-commerce", "jsonld", "schema", "product"],

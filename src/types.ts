@@ -7,6 +7,7 @@ export type Category =
   | "security"
   | "accessibility"
   | "e-commerce"
+  | "business"
   | "custom"
 export type JsonLdFieldType =
   | "string"

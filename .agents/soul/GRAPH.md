@@ -17,6 +17,7 @@ Dependency / ownership map of the repo. Use to know what touches what before edi
 ## Rule packs (`src/assets/`, moved from retired `rules/`)
 - `core.json` — the DEFAULT pack (40 rules), embedded via JSON import in `app.ts`, runs unless `--no-default-rule`: SEO-01..04, OG-01..04, AG-01, JSONLD-01/03 (carried over) + AXS-01..18 (accessibility: alt, labels, aria refs, tabindex, dup ids, heading order, landmarks, roles, zoom) + AG-02..12 (agent navigability: clickable hooks, llms.txt/robots/sitemap fetch, dead links, form names, WebSite JSON-LD, noopener). `$schema: ./schema.json`.
 - `e-commerce.json` — commerce add-on, 3 rules: JSONLD-02 Product (enriched: price+currency group, currency pattern), JSONLD-04 Offer (price>0, ISO currency, availability enum), JSONLD-05 BreadcrumbList. Merges ON TOP of default core: `--rule=./src/assets/e-commerce.json`.
+- `business.json` — business add-on, 8 rules (`business` category added to enum in schema.json + types.ts): BIZ-01 Organization url+sameAs / BIZ-02 contactPoint.email (pattern-validated) / BIZ-03 address completeness via `conditional` (if address → require street/locality/country) / BIZ-04 mailto present / BIZ-05 no freemail (comma selector, `{equals:0}` count) / BIZ-06 contact link / BIZ-07 about link / BIZ-08 privacy link (`:not([href^="#"])`). Merges ON TOP of default core: `--rule=./src/assets/business.json`.
 - `schema.json` — JSON-Schema draft-07 validating pack format. Strict (`additionalProperties: false`). `$id: https://webalyzer.dev/schemas/rule-spec.json`.
 
 ## External deps (via Deno Node compat)

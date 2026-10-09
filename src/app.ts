@@ -46,6 +46,13 @@ const BUILTIN_SKILLS: BuiltInSkill[] = [
     url:
       "https://raw.githubusercontent.com/a4arpon/site-analyzer/main/src/assets/e-commerce.json",
   },
+  {
+    name: "business",
+    description:
+      "Business add-on: Organization JSON-LD completeness (url, sameAs, contactPoint, postal address) + visible contact/trust links (mailto, contact/about/privacy pages). Merges on top of the default core: --rule=<url or path>.",
+    url:
+      "https://raw.githubusercontent.com/a4arpon/site-analyzer/main/src/assets/business.json",
+  },
   // Add more built-in packs here as they are authored in src/assets/.
 ]
 

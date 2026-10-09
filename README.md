@@ -83,6 +83,7 @@ deno check src/app.ts   # typecheck entry
 |---|---|---|
 | `src/assets/core.json` | 40 | **The default pack — embedded in the binary, runs on every audit.** SEO (title/h1/meta/canonical) · Open Graph · JSON-LD presence · **accessibility** (alt, labels, aria refs, roles, landmarks, heading order, duplicate ids, zoom) · **AI-agent navigability** (llms.txt, robots/sitemap, clickable hooks, dead links, form submittability). |
 | `src/assets/e-commerce.json` | 3 | Commerce add-on: Product / Offer / BreadcrumbList JSON-LD validity. Merges on top of the default core: `--rule=./src/assets/e-commerce.json` |
+| `src/assets/business.json` | 8 | Business add-on: Organization JSON-LD completeness (url, sameAs, contactPoint, postal address) + visible contact/trust links (mailto, no freemail, contact/about/privacy pages). Merges on top of the default core: `--rule=./src/assets/business.json` |
 
 ### Site spec — scope what gets crawled
 
@@ -141,6 +142,8 @@ src/assets/core.json     the DEFAULT pack (40 rules: SEO + OG + JSON-LD +
                          a11y + AI-agent navigability). Embedded via JSON
                          import → ships inside compiled binaries.
 src/assets/e-commerce.json  commerce add-on (3 rules: Product/Offer/Breadcrumb).
+src/assets/business.json    business add-on (8 rules: Organization JSON-LD
+                            completeness + contact/trust links).
 src/assets/schema.json    JSON-Schema (draft-07) for packs. $id webalyzer.dev.
 ```
 
@@ -299,7 +302,7 @@ schema.org / Google-rich-result constraint for **any** business type
 - [x] Pluggable local/remote rule packs (comma-separated merge)
 - [x] Sitemap-aware multi-URL crawl
 - [x] 10 check types incl. relational JSON-LD, `unique`/`pairing`/`sequence`/`each`
-- [x] Bundled packs: `core.json` (40 rules: SEO + a11y + agent-nav) + `e-commerce.json` (3)
+- [x] Bundled packs: `core.json` (40 rules: SEO + a11y + agent-nav) + `e-commerce.json` (3) + `business.json` (8)
 - [x] 4 output modes (overview / info / agent / compact-agent)
 - [x] **Standalone binaries** — `deno task build:compile` → `./dist/web-analyzer-qjs` (QuickJS engine, ~60 MB) + `deno task build:compile-v8` → `./dist/web-analyzer-v8` (V8, ~100 MB); `--allow-net`/`--allow-read` baked in, default pack embedded
 - [ ] JS-rendered SPA crawl (static HTML only for now — client-injected JSON-LD on SPAs is not yet visible)
